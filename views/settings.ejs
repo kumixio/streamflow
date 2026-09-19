@@ -346,7 +346,7 @@
               <div id="youtube-channels-list" class="space-y-3">
                 <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0) { %>
                   <% youtubeChannels.forEach(function(channel) { %>
-                    <div class="bg-dark-900 rounded-lg p-4 border border-gray-700 channel-item" data-channel-id="<%= channel.id %>">
+                    <div class="bg-dark-900 rounded-lg p-4 border border-gray-700 channel-item <%= !channel.is_connected ? 'opacity-60' : '' %>" data-channel-id="<%= channel.id %>">
                       <div class="flex items-center justify-between flex-wrap gap-4">
                         <div class="flex items-center gap-3">
                           <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
@@ -364,21 +364,31 @@
                               <% if (channel.is_default) { %>
                                 <span class="px-2 py-0.5 bg-blue-600/20 text-blue-600 text-xs rounded-sm">Default</span>
                               <% } %>
+                              <% if (!channel.is_connected) { %>
+                                <span class="px-2 py-0.5 bg-yellow-600/20 text-yellow-500 text-xs rounded-sm">Disconnected</span>
+                              <% } %>
                             </div>
                             <p class="text-xs text-gray-400"><%= Number(channel.subscriber_count || 0).toLocaleString() %> subscribers</p>
                           </div>
                         </div>
                         <div class="flex items-center gap-2">
                           <% if (!channel.is_default) { %>
-                            <button type="button" onclick="setDefaultChannel('<%= channel.id %>')"
+                            <button type="button" onclick="setDefaultChannel('<%= channel.id %>', <%= channel.is_connected ? 'true' : 'false' %>)"
                               class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm" title="Set as default">
                               <i class="ti ti-star"></i>
                             </button>
                           <% } %>
-                          <button type="button" onclick="disconnectChannel('<%= channel.id %>', '<%= channel.channel_name %>')"
-                            class="px-3 py-1.5 bg-gray-600 hover:bg-red-600 text-white rounded-lg transition-colors text-sm" title="Disconnect">
-                            <i class="ti ti-unlink"></i>
-                          </button>
+                          <% if (channel.is_connected) { %>
+                            <button type="button" onclick="disconnectChannel('<%= channel.id %>', '<%= channel.channel_name %>')"
+                              class="px-3 py-1.5 bg-gray-600 hover:bg-red-600 text-white rounded-lg transition-colors text-sm" title="Disconnect">
+                              <i class="ti ti-unlink"></i>
+                            </button>
+                          <% } else { %>
+                            <button type="button" onclick="window.location.href='/auth/youtube'"
+                              class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm" title="Reconnect">
+                              <i class="ti ti-plug"></i> Reconnect
+                            </button>
+                          <% } %>
                         </div>
                       </div>
                     </div>
@@ -1115,7 +1125,11 @@
       }
   });
 
-  async function setDefaultChannel(channelId) {
+  async function setDefaultChannel(channelId, isConnected) {
+    if (isConnected === false) {
+      showToast('error', 'Reconnect the channel before setting it as default');
+      return;
+    }
     try {
       const response = await fetch(`/api/settings/youtube-channel/${channelId}/default`, {
         method: 'POST',

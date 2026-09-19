@@ -2,15 +2,16 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 24 file — 20 diedit, 4 file baru (+1421 / −1133 baris, di luar dokumen ini).**
+**Total: 26 file — 22 diedit, 4 file baru (+2112 / −1225 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
-| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators, route hapus semua history, limit login 5→10 percobaan/15 menit, session 24 jam → 7 hari |
-| `db/database.js` | diedit | Tambah index `idx_stream_history_stream_id` |
+| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators, route hapus semua history, limit login 5→10 percobaan/15 menit, session 24 jam → 7 hari, adopsi stream saat boot (pengganti reset offline) |
+| `db/database.js` | diedit | Tambah index `idx_stream_history_stream_id` + kolom `streams.ffmpeg_pid` + kolom `youtube_channels.is_connected` |
 | `install.sh` | diedit | URL clone diarahkan ke fork ini (`kumixio/streamflow`), bukan upstream |
 | `middleware/uploadMiddleware.js` | diedit | Tambah `uploadStreamThumbnail` (limit 2MB) + `defParamCharset: 'utf8'` di semua instance multer |
-| `models/Stream.js` | diedit | Stream yang sudah selesai di-hide dari list dashboard |
+| `models/Stream.js` | diedit | Stream yang sudah selesai di-hide dari list dashboard; `findAllPaginated` dukung filter rentang tanggal (jadwal/start/created) |
+| `models/YoutubeChannel.js` | diedit | Soft-disconnect (`markDisconnected`/`markAllDisconnected`) + `findDefault` memprioritaskan channel yang masih connected |
 | `package.json` | diedit | multer 1.x → 2.4.0, blok `allowScripts` npm |
 | `public/js/csrf.js` | **baru** | Injector header CSRF global (fetch + XMLHttpRequest) |
 | `public/js/custom-dialog.js` | **baru** | Dialog konfirmasi/prompt in-app shared (pengganti dialog bawaan browser) |
@@ -18,16 +19,17 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `public/js/stream-modal.js` | diedit | Revive tombol submit saat modal dibuka ulang |
 | `public/sw.js` | diedit | Static resources jadi network-first, precache + csrf.js + custom-dialog.js, versi cache 1.2.0 |
 | `scripts/cleanup-orphan-thumbnails.js` | **baru** | Sweep file thumbnail yatim (dry-run default) |
-| `services/youtubeService.js` | diedit | MIME type thumbnail mengikuti ekstensi file |
+| `services/youtubeService.js` | diedit | MIME type thumbnail mengikuti ekstensi file; validasi `is_connected` sebelum pakai channel |
+| `services/streamingService.js` | diedit | ffmpeg detached di Linux (survive restart), log ffmpeg ke file + tailer, adopsi proses via PID saat boot, `gracefulShutdown` tidak lagi membunuh stream |
 | `utils/storage.js` | diedit | Tambah helper `deleteLocalUpload` |
 | `utils/videoProcessor.js` | diedit | `generateImageThumbnail` → `generateRotationThumbnail` |
-| `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO, dialog shared |
+| `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO, dialog shared, label channel disconnected di picker, **picker channel di modal edit** (sebelumnya channel gak bisa diganti saat edit), **filter status (live/scheduled/offline) + filter rentang tanggal** di toolbar Streams |
 | `views/gallery.ejs` | diedit | Definisi dialog duplikat diganti file shared |
-| `views/history.ejs` | diedit | Dialog custom + tombol Delete All |
+| `views/history.ejs` | diedit | Dialog custom + tombol Delete All + truncate judul panjang biar tabel gak scroll horizontal |
 | `views/layout.ejs` | diedit | Meta CSRF + csrf.js + custom-dialog.js, pembersihan UI (notifikasi/donate/footer), avatar pindah ke header |
 | `views/playlist.ejs` | diedit | Dialog hapus playlist pakai dialog custom |
 | `views/rotations.ejs` | diedit | Dialog hapus rotation pakai dialog custom |
-| `views/settings.ejs` | diedit | 4 dialog konfirmasi (reCAPTCHA, logs, disconnect channel) pakai dialog custom |
+| `views/settings.ejs` | diedit | 4 dialog konfirmasi (reCAPTCHA, logs, disconnect channel) pakai dialog custom; channel disconnected tetap tampil dengan badge + tombol Reconnect |
 | `views/users.ejs` | diedit | Modal konfirmasi statis lama diganti dialog shared |
 | `views/welcome.ejs` | diedit | Halaman welcome disederhanakan |
 
@@ -44,6 +46,10 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 5. **Form YouTube (create & edit) pakai schedule picker baru** — submit dalam format ISO absolut sehingga timezone-safe, dan tombol delete/edit aktif untuk stream scheduled (dulu disabled).
 6. **Semua dialog konfirmasi memakai dialog custom in-app** (`createModalDialog`) — tidak ada lagi dialog bawaan browser (`confirm()`) yang bisa diblokir/langsung tertutup sendiri.
 7. **Halaman History punya tombol Delete All** — hapus semua entri sekaligus dalam satu klik (dengan konfirmasi); stream finished yang terikat ikut terhapus beserta thumbnail-nya.
+8. **Live stream survive restart/update aplikasi (Linux/VPS)** — ffmpeg dijalankan detached dengan output ke file log (`logs/ffmpeg/stream-<id>.log`, dibatasi 100MB dengan auto-truncate), PID-nya dicatat di kolom `streams.ffmpeg_pid`. Saat app boot, stream "live" yang proses ffmpeg-nya masih hidup di-adopt kembali (console, health check, end-time, dan tombol Stop tetap berfungsi); yang prosesnya sudah mati atau end-time-nya sudah lewat langsung dihentikan/di-reset offline. Menghapus stream yang sedang live kini mematikan prosesnya dulu (sebelumnya hanya menunggu sync 60 detik). Di Windows (dev lokal) perilaku lama tetap: stream mati mengikuti app.
+9. **Disconnect channel YouTube tidak lagi menghapus row-nya** — stream yang terikat channel tidak akan kehilangan channel-nya saat disconnect/connect ulang (dulu: row dihapus, connect ulang membuat row ber-ID baru, semua stream lama putus). Channel disconnected tampil redup dengan badge + tombol Reconnect di Settings, dan stream yang dipakai jalan ditolak dengan pesan jelas sampai channel di-reconnect.
+10. **Channel bisa diganti saat edit stream** — modal edit kini punya tombol Change + daftar channel (sebelumnya hanya tampilan, channel permanen sejak create). Batas: gak bisa ganti channel saat stream sedang live; kalau stream pernah jalan (ada broadcast lama di channel sebelumnya), broadcast lama dihapus dan dibuat ulang di channel baru saat stream start berikutnya.
+11. **Filter di halaman Streams (dashboard)** — dropdown status (All/Live/Scheduled/Offline) + filter rentang tanggal via modal date picker (mis. dari tanggal 12 sampai hari ini, atau 12–13). Tanggal yang dibandingkan: jadwal stream → waktu start → tanggal dibuat (yang pertama ada). Judul panjang di tabel History kini di-truncate (tooltip tetap penuh) sehingga tabel gak scroll horizontal lagi.
 
 ---
 

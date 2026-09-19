@@ -46,6 +46,14 @@ const HEALTH_CHECK_INTERVAL = 30000;
 const SYNC_INTERVAL = 60000;
 const STREAM_START_TIMEOUT = 15000;
 
+// on Linux (VPS) ffmpeg runs detached from this process, writing its output
+// to a log file, so live streams keep running through app restarts and are
+// re-adopted on the next boot. On Windows (local dev) nothing changes:
+// attached pipes, streams die with the app like before.
+const DETACHED_STREAMS = process.platform === 'linux';
+const FFMPEG_LOG_DIR = path.join(path.resolve(__dirname, '..'), 'logs', 'ffmpeg');
+const FFMPEG_LOG_MAX_BYTES = 100 * 1024 * 1024;
+
 const YOUTUBE_COPY_ALLOWED_VIDEO_CODECS = new Set(['h264']);
 const YOUTUBE_COPY_ALLOWED_AUDIO_CODECS = new Set(['aac', 'mp3']);
 
@@ -83,6 +91,127 @@ function cleanupStreamData(streamId) {
   streamRetryCount.delete(streamId);
   manuallyStoppingStreams.delete(streamId);
   startingStreams.delete(streamId);
+  stopLogTailer(streamId);
+  db.run('UPDATE streams SET ffmpeg_pid = NULL WHERE id = ?', [streamId]);
+}
+
+function ffmpegLogPath(streamId) {
+  return path.join(FFMPEG_LOG_DIR, `stream-${streamId}.log`);
+}
+
+function isFfmpegPidAlive(pid) {
+  if (!pid || process.platform !== 'linux') {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    // guard against pid recycling: only trust a pid that is still ffmpeg
+    const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8');
+    return cmdline.includes('ffmpeg');
+  } catch (e) {
+    return false;
+  }
+}
+
+// shared by the pipe handler (attached mode) and the file tailer (detached
+// mode): progress lines confirm startup, everything else feeds the console
+function processFfmpegLogLine(streamId, line, startupState) {
+  if (!line) {
+    return;
+  }
+
+  updateStreamActivity(streamId);
+
+  if (isProgressLogLine(line)) {
+    if (startupState && startupState.resolve) {
+      startupState.resolve();
+    }
+    return;
+  }
+
+  addStreamLog(streamId, `[FFmpeg] ${line}`);
+
+  if (!startupState) {
+    return;
+  }
+
+  const relevantLog = getRelevantStartupLog(line);
+  if (relevantLog) {
+    startupState.lastLogLine = relevantLog;
+
+    if (/(error|failed|invalid|unsupported|broken pipe|connection.*refused|input\/output error|could not write header)/i.test(relevantLog)) {
+      startupState.lastErrorLine = relevantLog;
+    }
+  }
+}
+
+const logTailers = new Map();
+
+// detached ffmpeg writes stdout/stderr to a file; poll it so the in-app
+// console, startup detection and the stale-stream health check keep working
+function startLogTailer(streamId, startOffset = 0) {
+  stopLogTailer(streamId);
+  const logFile = ffmpegLogPath(streamId);
+  const state = { offset: startOffset, pending: '', timer: null, stopped: false };
+
+  const poll = () => {
+    if (state.stopped) {
+      return;
+    }
+    try {
+      let size = fs.statSync(logFile).size;
+
+      // stats lines accumulate ~15-20MB/day on a 24/7 stream; cap the file so
+      // it can't grow forever. ffmpeg appends with O_APPEND, so truncating
+      // from outside is safe — its next write lands at the new end.
+      if (size > FFMPEG_LOG_MAX_BYTES) {
+        fs.truncateSync(logFile, 0);
+        state.offset = 0;
+        state.pending = '';
+        size = 0;
+      }
+
+      if (size <= state.offset) {
+        return;
+      }
+      const fd = fs.openSync(logFile, 'r');
+      const buffer = Buffer.alloc(size - state.offset);
+      fs.readSync(fd, buffer, 0, buffer.length, state.offset);
+      fs.closeSync(fd);
+      state.offset = size;
+
+      state.pending += buffer.toString('utf8');
+      const lastNewline = state.pending.lastIndexOf('\n');
+      if (lastNewline === -1) {
+        return;
+      }
+      const complete = state.pending.slice(0, lastNewline);
+      state.pending = state.pending.slice(lastNewline + 1);
+
+      const streamData = activeStreams.get(streamId);
+      const startupState = streamData ? streamData.startupState : null;
+      for (const rawLine of complete.split(/\r?\n|\r/g)) {
+        processFfmpegLogLine(streamId, rawLine.trim(), startupState);
+      }
+    } catch (e) {
+      // log file may not exist yet between spawn and ffmpeg's first write
+    }
+  };
+
+  state.timer = setInterval(poll, 1000);
+  if (typeof state.timer.unref === 'function') {
+    state.timer.unref();
+  }
+  logTailers.set(streamId, state);
+}
+
+function stopLogTailer(streamId) {
+  const state = logTailers.get(streamId);
+  if (state) {
+    state.stopped = true;
+    clearInterval(state.timer);
+    logTailers.delete(streamId);
+  }
 }
 
 function getRetryDelay(retryCount) {
@@ -667,8 +796,38 @@ async function buildFFmpegArgs(stream) {
 
 async function killFFmpegProcess(streamId, streamData) {
   return new Promise((resolve) => {
-    if (!streamData || !streamData.process) {
+    if (!streamData) {
       resolve(true);
+      return;
+    }
+
+    // adopted process from a previous app run: no child object, kill by pid
+    if (!streamData.process) {
+      const pid = streamData.pid;
+      if (!pid || !isFfmpegPidAlive(pid)) {
+        resolve(true);
+        return;
+      }
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch (e) { }
+
+      const deadline = Date.now() + 3000;
+      const waitDeath = setInterval(() => {
+        if (!isFfmpegPidAlive(pid)) {
+          clearInterval(waitDeath);
+          resolve(true);
+        } else if (Date.now() > deadline) {
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch (e) { }
+          clearInterval(waitDeath);
+          resolve(true);
+        }
+      }, 200);
+      if (typeof waitDeath.unref === 'function') {
+        waitDeath.unref();
+      }
       return;
     }
 
@@ -722,7 +881,9 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
 
     if (activeStreams.has(streamId)) {
       const existing = activeStreams.get(streamId);
-      if (existing.process && existing.process.exitCode === null) {
+      const isAttachedAlive = existing.process && existing.process.exitCode === null;
+      const isAdoptedAlive = !existing.process && isFfmpegPidAlive(existing.pid);
+      if (isAttachedAlive || isAdoptedAlive) {
         if (!isRetry) {
           return { success: false, error: 'Stream is already active' };
         }
@@ -770,12 +931,7 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
 
     const ffmpegArgs = await buildFFmpegArgs(stream);
 
-    addStreamLog(streamId, `Starting FFmpeg process`);
-
-    const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
-      detached: false,
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+    addStreamLog(streamId, `Starting FFmpeg process${DETACHED_STREAMS ? ' (detached, survives app restarts)' : ''}`);
 
     const startupState = {
       lastLogLine: '',
@@ -783,6 +939,27 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       resolve: null,
       reject: null
     };
+
+    let ffmpegProcess;
+    if (DETACHED_STREAMS) {
+      fs.mkdirSync(FFMPEG_LOG_DIR, { recursive: true });
+      const logFd = fs.openSync(ffmpegLogPath(streamId), 'a');
+      try {
+        ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
+          detached: true,
+          stdio: ['ignore', logFd, logFd]
+        });
+      } finally {
+        fs.closeSync(logFd);
+      }
+      ffmpegProcess.unref();
+      db.run('UPDATE streams SET ffmpeg_pid = ? WHERE id = ?', [ffmpegProcess.pid, streamId]);
+    } else {
+      ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
+        detached: false,
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+    }
 
     const startupPromise = waitForStreamStartup(streamId, ffmpegProcess, startupState);
 
@@ -799,46 +976,34 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       startTime: startTimeIso,
       endTime: originalEndTime,
       pid: ffmpegProcess.pid,
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
+      detached: DETACHED_STREAMS,
+      startupState
     });
 
-    ffmpegProcess.stdout.on('data', (data) => {
-      const msg = data.toString().trim();
-      if (msg) {
-        addStreamLog(streamId, `[OUT] ${msg}`);
-        updateStreamActivity(streamId);
-      }
-    });
-
-    ffmpegProcess.stderr.on('data', (data) => {
-      const lines = data.toString().split(/\r?\n|\r/g);
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line) {
-          continue;
+    if (DETACHED_STREAMS) {
+      // start at EOF: the file also holds output from previous runs of this
+      // stream (retries/restarts) and replaying it would flood the console
+      // and fake a startup-success on old progress lines
+      const logFile = ffmpegLogPath(streamId);
+      const startAt = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
+      startLogTailer(streamId, startAt);
+    } else {
+      ffmpegProcess.stdout.on('data', (data) => {
+        const msg = data.toString().trim();
+        if (msg) {
+          addStreamLog(streamId, `[OUT] ${msg}`);
+          updateStreamActivity(streamId);
         }
+      });
 
-        updateStreamActivity(streamId);
-
-        if (isProgressLogLine(line)) {
-          if (startupState.resolve) {
-            startupState.resolve();
-          }
-          continue;
+      ffmpegProcess.stderr.on('data', (data) => {
+        const lines = data.toString().split(/\r?\n|\r/g);
+        for (const rawLine of lines) {
+          processFfmpegLogLine(streamId, rawLine.trim(), startupState);
         }
-
-        addStreamLog(streamId, `[FFmpeg] ${line}`);
-
-        const relevantLog = getRelevantStartupLog(line);
-        if (relevantLog) {
-          startupState.lastLogLine = relevantLog;
-
-          if (/(error|failed|invalid|unsupported|broken pipe|connection.*refused|input\/output error|could not write header)/i.test(relevantLog)) {
-            startupState.lastErrorLine = relevantLog;
-          }
-        }
-      }
-    });
+      });
+    }
 
     ffmpegProcess.on('exit', async (code, signal) => {
       addStreamLog(streamId, `FFmpeg exited: code=${code}, signal=${signal}`);
@@ -995,6 +1160,14 @@ async function stopStream(streamId) {
 
     if (!streamData) {
       if (stream && stream.status === 'live') {
+        // no in-memory entry, but a detached process may still be running
+        // under the pid recorded in the database — kill it before flipping
+        // the status, otherwise it would stream on with no row to manage it
+        if (stream.ffmpeg_pid) {
+          manuallyStoppingStreams.add(streamId);
+          await killFFmpegProcess(streamId, { pid: stream.ffmpeg_pid });
+          manuallyStoppingStreams.delete(streamId);
+        }
         await Stream.updateStatus(streamId, 'offline', stream.user_id);
         if (schedulerService) {
           schedulerService.handleStreamStopped(streamId);
@@ -1057,7 +1230,11 @@ function isStreamActive(streamId) {
   const streamData = activeStreams.get(streamId);
   if (!streamData) return false;
 
-  if (streamData.process && streamData.process.exitCode !== null) {
+  if (!streamData.process) {
+    return isFfmpegPidAlive(streamData.pid);
+  }
+
+  if (streamData.process.exitCode !== null) {
     activeStreams.delete(streamId);
     return false;
   }
@@ -1120,12 +1297,7 @@ async function syncStreamStatuses() {
       const stream = await Stream.findById(streamId);
 
       if (!stream) {
-        const proc = streamData.process;
-        if (proc && typeof proc.kill === 'function') {
-          try {
-            proc.kill('SIGTERM');
-          } catch (e) { }
-        }
+        await killFFmpegProcess(streamId, streamData);
         activeStreams.delete(streamId);
         cleanupStreamData(streamId);
         continue;
@@ -1168,6 +1340,15 @@ async function healthCheckStreams() {
         continue;
       }
 
+      // adopted process from a previous app run: no exit events, poll by pid
+      if (!streamData.process) {
+        if (isFfmpegPidAlive(streamData.pid)) {
+          continue;
+        }
+        await handleAdoptedStreamExit(streamId);
+        continue;
+      }
+
       if (streamData.lastActivity && (now - streamData.lastActivity) > staleThreshold) {
         addStreamLog(streamId, 'Stream appears stale, restarting...');
 
@@ -1203,6 +1384,122 @@ async function healthCheckStreams() {
       }
     }
   } catch (error) { }
+}
+
+// mirror of the attached-process exit handler, driven by pid polling
+async function handleAdoptedStreamExit(streamId) {
+  addStreamLog(streamId, 'FFmpeg process ended');
+  const wasActive = activeStreams.delete(streamId);
+  stopLogTailer(streamId);
+
+  const currentStream = await Stream.findById(streamId);
+
+  if (!currentStream || currentStream.status === 'offline') {
+    cleanupStreamData(streamId);
+    return;
+  }
+
+  if (currentStream.end_time && new Date(currentStream.end_time).getTime() <= Date.now()) {
+    addStreamLog(streamId, 'Stream ended - scheduled end time reached');
+    if (wasActive) {
+      try {
+        await Stream.updateStatus(streamId, 'offline', currentStream.user_id);
+        if (schedulerService) {
+          schedulerService.handleStreamStopped(streamId);
+        }
+      } catch (e) { }
+    }
+    cleanupStreamData(streamId);
+    return;
+  }
+
+  const retryCount = streamRetryCount.get(streamId) || 0;
+  if (retryCount < MAX_RETRY_ATTEMPTS) {
+    streamRetryCount.set(streamId, retryCount + 1);
+    const delay = getRetryDelay(retryCount);
+    addStreamLog(streamId, `Retry #${retryCount + 1} in ${Math.round(delay / 1000)}s`);
+
+    setTimeout(async () => {
+      try {
+        const latestStream = await Stream.findById(streamId);
+        if (latestStream && latestStream.status !== 'offline') {
+          const result = await startStream(streamId, true);
+          if (!result.success) {
+            await Stream.updateStatus(streamId, 'offline', latestStream.user_id);
+            cleanupStreamData(streamId);
+          }
+        } else {
+          cleanupStreamData(streamId);
+        }
+      } catch (e) {
+        cleanupStreamData(streamId);
+      }
+    }, delay);
+    return;
+  }
+
+  addStreamLog(streamId, `Max retries (${MAX_RETRY_ATTEMPTS}) reached`);
+  if (wasActive) {
+    try {
+      await Stream.updateStatus(streamId, 'offline', currentStream.user_id);
+      if (schedulerService) {
+        schedulerService.handleStreamStopped(streamId);
+      }
+    } catch (e) { }
+  }
+  cleanupStreamData(streamId);
+}
+
+// after a restart, detached ffmpeg processes may still be pushing their live
+// stream — re-attach to them by pid instead of resetting the stream offline
+async function adoptRunningStreams() {
+  try {
+    const liveStreams = await Stream.findAll(null, 'live');
+    if (!liveStreams || liveStreams.length === 0) {
+      return;
+    }
+
+    let adopted = 0;
+    for (const stream of liveStreams) {
+      if (!isFfmpegPidAlive(stream.ffmpeg_pid)) {
+        await Stream.updateStatus(stream.id, 'offline');
+        cleanupStreamData(stream.id);
+        continue;
+      }
+
+      // the app was down across the scheduled end time — stop the process
+      // right away instead of adopting it and waiting for the scheduler
+      if (stream.end_time && new Date(stream.end_time).getTime() <= Date.now()) {
+        addStreamLog(stream.id, 'Stream ended - scheduled end time reached while app was down');
+        await killFFmpegProcess(stream.id, { pid: stream.ffmpeg_pid });
+        await Stream.updateStatus(stream.id, 'offline', stream.user_id);
+        cleanupStreamData(stream.id);
+        continue;
+      }
+
+      activeStreams.set(stream.id, {
+        process: null,
+        pid: stream.ffmpeg_pid,
+        userId: stream.user_id,
+        startTime: stream.start_time || new Date().toISOString(),
+        endTime: stream.end_time,
+        lastActivity: Date.now(),
+        detached: true
+      });
+      addStreamLog(stream.id, `Re-attached to running FFmpeg (pid ${stream.ffmpeg_pid}) after app restart`);
+
+      const logFile = ffmpegLogPath(stream.id);
+      const startOffset = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
+      startLogTailer(stream.id, startOffset);
+      adopted++;
+    }
+
+    if (adopted > 0) {
+      console.log(`[Streaming] Re-attached to ${adopted} running stream(s) after restart`);
+    }
+  } catch (error) {
+    console.error('[Streaming] Failed to adopt running streams:', error);
+  }
 }
 
 async function saveStreamHistory(stream) {
@@ -1277,6 +1574,25 @@ async function gracefulShutdown() {
 
   const streamIds = Array.from(activeStreams.keys());
 
+  // detached streams are left running on purpose so lives survive the app
+  // restart; their pids are already persisted and re-adopted on the next boot.
+  // stopping a stream is done from the app (Stop button) at any time.
+  if (DETACHED_STREAMS) {
+    let running = 0;
+    for (const streamId of streamIds) {
+      const streamData = activeStreams.get(streamId);
+      stopLogTailer(streamId);
+      if (streamData && streamData.pid) {
+        running++;
+      }
+      activeStreams.delete(streamId);
+    }
+    if (running > 0) {
+      console.log(`[Streaming] Leaving ${running} stream(s) running across restart`);
+    }
+    return;
+  }
+
   for (const streamId of streamIds) {
     try {
       const streamData = activeStreams.get(streamId);
@@ -1295,15 +1611,7 @@ async function gracefulShutdown() {
   }
 }
 
-process.on('SIGTERM', async () => {
-  await gracefulShutdown();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  await gracefulShutdown();
-  process.exit(0);
-});
+// shutdown signals are handled by app.js, which calls gracefulShutdown()
 
 module.exports = {
   startStream,
@@ -1318,5 +1626,6 @@ module.exports = {
   healthCheckStreams,
   saveStreamHistory,
   gracefulShutdown,
+  adoptRunningStreams,
   setSchedulerService
 };

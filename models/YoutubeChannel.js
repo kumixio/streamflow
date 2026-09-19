@@ -37,7 +37,37 @@ class YoutubeChannel {
     });
   }
 
-  static findDefault(userId) {
+  static async findDefault(userId) {
+    // prefer the default channel while it is connected, then any connected
+    // channel, and only fall back to the (disconnected) default for display
+    const connectedDefault = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM youtube_channels WHERE user_id = ? AND is_default = 1 AND is_connected = 1',
+        [userId],
+        (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        }
+      );
+    });
+    if (connectedDefault) {
+      return connectedDefault;
+    }
+
+    const anyConnected = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM youtube_channels WHERE user_id = ? AND is_connected = 1 ORDER BY is_default DESC, created_at DESC LIMIT 1',
+        [userId],
+        (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        }
+      );
+    });
+    if (anyConnected) {
+      return anyConnected;
+    }
+
     return new Promise((resolve, reject) => {
       db.get(
         'SELECT * FROM youtube_channels WHERE user_id = ? AND is_default = 1',
@@ -134,6 +164,38 @@ class YoutubeChannel {
         function (err) {
           if (err) return reject(err);
           resolve({ deleted: this.changes > 0 });
+        }
+      );
+    });
+  }
+
+  // soft-disconnect: keep the row (streams still reference it and would lose
+  // their channel binding if it were deleted), just drop the dead tokens
+  static markDisconnected(id, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE youtube_channels
+         SET is_connected = 0, access_token = NULL, refresh_token = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND user_id = ?`,
+        [id, userId],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  }
+
+  static markAllDisconnected(userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE youtube_channels
+         SET is_connected = 0, access_token = NULL, refresh_token = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = ?`,
+        [userId],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true, updated: this.changes });
         }
       );
     });

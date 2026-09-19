@@ -155,7 +155,7 @@ class Stream {
     });
   }
   static findAllPaginated(userId = null, options = {}) {
-    const { page = 1, limit = 10, filter = null, search = '' } = options;
+    const { page = 1, limit = 10, filter = null, search = '', dateFrom = null, dateTo = null } = options;
     const offset = (page - 1) * limit;
     return new Promise((resolve, reject) => {
       let baseQuery = `
@@ -185,6 +185,16 @@ class Stream {
       if (search) {
         conditions.push('s.title LIKE ?');
         params.push(`%${search}%`);
+      }
+      // date range compares against the most meaningful date each stream has:
+      // its schedule first, then its last start, then when it was created
+      if (dateFrom) {
+        conditions.push('date(COALESCE(s.schedule_time, s.start_time, s.created_at)) >= ?');
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        conditions.push('date(COALESCE(s.schedule_time, s.start_time, s.created_at)) <= ?');
+        params.push(dateTo);
       }
       if (conditions.length > 0) {
         baseQuery += ' WHERE ' + conditions.join(' AND ');

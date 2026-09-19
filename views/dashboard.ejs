@@ -142,6 +142,18 @@
             class="w-full bg-dark-700 border border-gray-600 text-white pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
           <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
         </div>
+        <select id="streams-status-filter" onchange="applyStreamFilters()"
+          class="w-full sm:w-auto bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]">
+          <option value="">All Status</option>
+          <option value="live">Live</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="offline">Offline</option>
+        </select>
+        <button type="button" id="streams-date-filter-btn" onclick="openDateFilterModal()"
+          class="w-full sm:w-auto flex items-center justify-center gap-2 bg-dark-700 border border-gray-600 text-gray-300 hover:text-white px-3 py-2 rounded-lg transition-colors">
+          <i class="ti ti-calendar"></i>
+          <span id="streams-date-filter-label">Date</span>
+        </button>
         <button onclick="openNewStreamModal()"
           class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
           <i class="ti ti-plus"></i>
@@ -593,18 +605,18 @@
                             <img src="<%= channel.channel_thumbnail %>" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'">
                           </div>
                           <div class="min-w-0 flex-1">
-                            <p class="text-sm text-white truncate"><%= channel.channel_name %></p>
+                            <p class="text-sm text-white truncate"><%= channel.channel_name %><% if (!channel.is_connected) { %> <span class="text-yellow-500 text-xs">(disconnected)</span><% } %></p>
                             <p class="text-xs text-gray-400"><%= Number(channel.subscriber_count || 0).toLocaleString() %> subs</p>
                           </div>
                           <% if (channel.is_default) { %>
-                          <span class="text-xs text-primary">Default</span>
+                            <span class="text-xs text-primary">Default</span>
                           <% } %>
                         </button>
                         <% }); %>
                       </div>
                       <% } %>
                     </div>
-                    <input type="hidden" id="ytSelectedChannelId" name="ytChannelId" value="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default) || youtubeChannels[0]).id : '' %>">
+                    <input type="hidden" id="ytSelectedChannelId" name="ytChannelId" value="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default && c.is_connected) || youtubeChannels.find(c => c.is_connected) || youtubeChannels[0]).id : '' %>">
                   </div>
 
                   <div>
@@ -1064,10 +1076,36 @@
                           </div>
                         </div>
 
+                        <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 1) { %>
+                        <button type="button" onclick="toggleEditChannelSelector()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm flex-shrink-0">
+                          <i class="ti ti-switch-horizontal mr-1"></i>Change
+                        </button>
+                        <% } %>
                       </div>
 
+                      <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 1) { %>
+                      <div id="editChannelSelectorDropdown" class="hidden mt-3 pt-3 border-t border-gray-700 space-y-2">
+                        <% youtubeChannels.forEach(function(channel) { %>
+                        <button type="button" onclick="selectEditYtChannel(this)"
+                          class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors text-left edit-channel-option"
+                          data-channel-id="<%= channel.id %>"
+                          data-channel-name="<%= channel.channel_name %>"
+                          data-channel-thumb="<%= channel.channel_thumbnail %>"
+                          data-channel-subs="<%= channel.subscriber_count %>">
+                          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
+                            <img src="<%= channel.channel_thumbnail %>" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                          </div>
+                          <div class="min-w-0 flex-1">
+                            <p class="text-sm text-white truncate"><%= channel.channel_name %><% if (!channel.is_connected) { %> <span class="text-yellow-500 text-xs">(disconnected)</span><% } %></p>
+                            <p class="text-xs text-gray-400"><%= Number(channel.subscriber_count || 0).toLocaleString() %> subs</p>
+                          </div>
+                        </button>
+                        <% }); %>
+                      </div>
+                      <% } %>
+
                     </div>
-                    <input type="hidden" id="editYtSelectedChannelId" name="ytChannelId" value="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default) || youtubeChannels[0]).id : '' %>">
+                    <input type="hidden" id="editYtSelectedChannelId" name="ytChannelId" value="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default && c.is_connected) || youtubeChannels.find(c => c.is_connected) || youtubeChannels[0]).id : '' %>">
                   </div>
 
                   <div>
@@ -1328,7 +1366,7 @@
       document.getElementById('ytChannelThumb').src = channelThumbnail;
       document.getElementById('ytChannelNameDisplay').textContent = channelName;
       document.getElementById('ytChannelSubsDisplay').textContent = Number(subscriberCount || 0).toLocaleString() + ' subscribers';
-      
+
       document.querySelectorAll('.channel-option').forEach(opt => {
         opt.classList.remove('bg-gray-700/50', 'selected-channel');
       });
@@ -1336,8 +1374,34 @@
       if (selectedOption) {
         selectedOption.classList.add('bg-gray-700/50', 'selected-channel');
       }
-      
+
       toggleChannelSelector();
+    }
+
+    function toggleEditChannelSelector() {
+      const dropdown = document.getElementById('editChannelSelectorDropdown');
+      if (dropdown) {
+        dropdown.classList.toggle('hidden');
+      }
+    }
+
+    // takes the clicked option element: channel names can contain quotes, so
+    // they travel as escaped data-attributes instead of inline onclick args
+    function selectEditYtChannel(optionEl) {
+      const channelId = optionEl.dataset.channelId;
+      document.getElementById('editYtSelectedChannelId').value = channelId;
+      document.getElementById('editYtChannelNameDisplay').textContent = optionEl.dataset.channelName;
+      document.getElementById('editYtChannelSubsDisplay').textContent = Number(optionEl.dataset.channelSubs || 0).toLocaleString() + ' subscribers';
+      if (optionEl.dataset.channelThumb) {
+        document.getElementById('editYtChannelThumb').src = optionEl.dataset.channelThumb;
+      }
+
+      document.querySelectorAll('.edit-channel-option').forEach(opt => {
+        opt.classList.remove('bg-gray-700/50', 'selected-channel');
+      });
+      optionEl.classList.add('bg-gray-700/50', 'selected-channel');
+
+      toggleEditChannelSelector();
     }
 
     function formatMemory(value) {
@@ -2117,13 +2181,16 @@
       currentPage = page;
       currentLimit = limit;
       currentSearch = search;
-      
+
       const params = new URLSearchParams({
         page: page,
         limit: limit
       });
       if (search) params.append('search', search);
-      
+      if (currentStatusFilter) params.append('filter', currentStatusFilter);
+      if (currentDateFilterFrom) params.append('dateFrom', currentDateFilterFrom);
+      if (currentDateFilterTo) params.append('dateTo', currentDateFilterTo);
+
       fetch(`/api/streams?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
@@ -2157,7 +2224,61 @@
         })
         .catch(error => console.error('Error updating counters:', error));
     }
-    
+
+    let currentStatusFilter = '';
+    let currentDateFilterFrom = '';
+    let currentDateFilterTo = '';
+
+    function applyStreamFilters() {
+      fetchStreams(1, currentLimit, currentSearch);
+    }
+
+    function openDateFilterModal() {
+      document.getElementById('streams-date-from').value = currentDateFilterFrom;
+      document.getElementById('streams-date-to').value = currentDateFilterTo;
+      document.getElementById('streamDateFilterModal').classList.remove('hidden');
+    }
+
+    function closeDateFilterModal() {
+      document.getElementById('streamDateFilterModal').classList.add('hidden');
+    }
+
+    function applyDateFilter() {
+      const from = document.getElementById('streams-date-from').value;
+      const to = document.getElementById('streams-date-to').value;
+      if (from && to && from > to) {
+        showToast('error', '"From" date must be before "To" date');
+        return;
+      }
+      currentDateFilterFrom = from;
+      currentDateFilterTo = to;
+      updateDateFilterButton();
+      closeDateFilterModal();
+      applyStreamFilters();
+    }
+
+    function resetDateFilter() {
+      currentDateFilterFrom = '';
+      currentDateFilterTo = '';
+      document.getElementById('streams-date-from').value = '';
+      document.getElementById('streams-date-to').value = '';
+      updateDateFilterButton();
+      closeDateFilterModal();
+      applyStreamFilters();
+    }
+
+    function updateDateFilterButton() {
+      const btn = document.getElementById('streams-date-filter-btn');
+      const label = document.getElementById('streams-date-filter-label');
+      if (currentDateFilterFrom || currentDateFilterTo) {
+        btn.classList.add('ring-1', 'ring-primary', 'text-white');
+        label.textContent = `${currentDateFilterFrom || '…'} → ${currentDateFilterTo || 'now'}`;
+      } else {
+        btn.classList.remove('ring-1', 'ring-primary', 'text-white');
+        label.textContent = 'Date';
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
       if (initialStreamsData && initialStreamsData.length >= 0 && !initialDataUsed) {
         initialDataUsed = true;
@@ -4233,6 +4354,34 @@
       }
     });
   </script>
+
+  <div id="streamDateFilterModal" class="fixed inset-0 bg-black/60 z-50 hidden modal-overlay flex items-center justify-center p-4" onclick="if (event.target === this) closeDateFilterModal()">
+    <div class="bg-dark-800 border border-gray-700 rounded-xl p-6 w-full max-w-sm">
+      <h3 class="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+        <i class="ti ti-calendar"></i> Filter by Date
+      </h3>
+      <p class="text-sm text-gray-400 mb-4">Show streams scheduled, started, or created within the range</p>
+      <div class="space-y-4">
+        <div>
+          <label for="streams-date-from" class="text-sm text-gray-300 block mb-1">From</label>
+          <input type="date" id="streams-date-from"
+            class="w-full bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]">
+        </div>
+        <div>
+          <label for="streams-date-to" class="text-sm text-gray-300 block mb-1">To</label>
+          <input type="date" id="streams-date-to"
+            class="w-full bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]">
+        </div>
+      </div>
+      <div class="flex items-center justify-between mt-6">
+        <button type="button" onclick="resetDateFilter()" class="text-sm text-gray-400 hover:text-red-400 transition-colors">Reset</button>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeDateFilterModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
+          <button type="button" onclick="applyDateFilter()" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg text-sm transition-colors">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="fixed top-16 right-4 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 hidden flex items-center">
     <i id="toast-icon" class="mr-2"></i>

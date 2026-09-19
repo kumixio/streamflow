@@ -116,7 +116,7 @@ async function createYouTubeBroadcast(streamId, baseUrl) {
   }
 
   const selectedChannel = await YoutubeChannel.findById(stream.youtube_channel_id);
-  if (!selectedChannel || !selectedChannel.access_token || !selectedChannel.refresh_token) {
+  if (!selectedChannel || !selectedChannel.is_connected || !selectedChannel.access_token || !selectedChannel.refresh_token) {
     throw new Error('YouTube channel not found or not connected');
   }
 

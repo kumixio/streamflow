@@ -212,6 +212,22 @@ function createTables() {
         }
       });
 
+      // pid of the detached ffmpeg process, so a restarted app can re-attach
+      // to a stream that kept running through the restart
+      db.run(`ALTER TABLE streams ADD COLUMN ffmpeg_pid INTEGER`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding ffmpeg_pid column:', err.message);
+        }
+      });
+
+      // disconnecting a channel keeps its row (streams reference it by id);
+      // is_connected tracks whether its OAuth tokens are live
+      db.run(`ALTER TABLE youtube_channels ADD COLUMN is_connected INTEGER DEFAULT 1`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding is_connected column:', err.message);
+        }
+      });
+
       db.run(`ALTER TABLE streams ADD COLUMN youtube_description TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
           console.error('Error adding youtube_description column:', err.message);

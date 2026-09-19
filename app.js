@@ -2398,7 +2398,9 @@ app.get('/api/settings/youtube-status', isAuthenticated, async (req, res) => {
 app.post('/api/settings/youtube-disconnect', isAuthenticated, async (req, res) => {
   try {
     const YoutubeChannel = require('./models/YoutubeChannel');
-    await YoutubeChannel.deleteAll(req.session.userId);
+    // soft-disconnect: rows are kept so streams don't lose their channel
+    // binding; reconnecting refreshes the tokens in place
+    await YoutubeChannel.markAllDisconnected(req.session.userId);
 
     return res.json({
       success: true,
@@ -2568,13 +2570,16 @@ app.delete('/api/settings/youtube-channel/:id', isAuthenticated, async (req, res
     if (!channel || channel.user_id !== req.session.userId) {
       return res.status(404).json({ success: false, error: 'Channel not found' });
     }
-    
-    await YoutubeChannel.delete(req.params.id, req.session.userId);
-    
+
+    // soft-disconnect keeps the row (streams reference it); only the tokens
+    // are dropped until the channel is connected again
+    await YoutubeChannel.markDisconnected(req.params.id, req.session.userId);
+
     if (channel.is_default) {
       const channels = await YoutubeChannel.findAll(req.session.userId);
-      if (channels.length > 0) {
-        await YoutubeChannel.setDefault(req.session.userId, channels[0].id);
+      const nextConnected = channels.find((c) => c.is_connected && c.id !== req.params.id);
+      if (nextConnected) {
+        await YoutubeChannel.setDefault(req.session.userId, nextConnected.id);
       }
     }
     
@@ -2688,7 +2693,8 @@ app.get('/auth/youtube/callback', isAuthenticated, async (req, res) => {
         refresh_token: tokens.refresh_token ? encrypt(tokens.refresh_token) : existingChannel.refresh_token,
         channel_name: channelName,
         channel_thumbnail: channelThumbnail,
-        subscriber_count: subscriberCount
+        subscriber_count: subscriberCount,
+        is_connected: 1
       });
     } else {
       await YoutubeChannel.create({
@@ -3373,12 +3379,16 @@ app.get('/api/streams', isAuthenticated, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
+    const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dateFrom || '') ? req.query.dateFrom : null;
+    const dateTo = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dateTo || '') ? req.query.dateTo : null;
     if (req.query.page || req.query.limit) {
       const result = await Stream.findAllPaginated(req.session.userId, {
         page,
         limit,
         filter,
-        search
+        search,
+        dateFrom,
+        dateTo
       });
       res.json({ success: true, ...result });
     } else {
@@ -3697,7 +3707,33 @@ app.put('/api/streams/:id', isAuthenticated, streamThumbnailUpload, async (req, 
       if (req.body.ytMonetization !== undefined) {
         updateData.youtube_monetization = req.body.ytMonetization === 'true' || req.body.ytMonetization === true;
       }
-      
+
+      let channelSwitched = false;
+      if (req.body.ytChannelId) {
+        const YoutubeChannel = require('./models/YoutubeChannel');
+        const targetChannel = await YoutubeChannel.findById(req.body.ytChannelId);
+        if (!targetChannel || targetChannel.user_id !== req.session.userId) {
+          return res.status(400).json({ success: false, error: 'Channel not found' });
+        }
+        if (targetChannel.id !== stream.youtube_channel_id) {
+          if (stream.status === 'live') {
+            return res.status(400).json({ success: false, error: 'Cannot change channel while the stream is live' });
+          }
+          if (stream.youtube_broadcast_id) {
+            // the old broadcast lives on the old channel — remove it so the
+            // next start creates a fresh broadcast under the new channel
+            try {
+              const youtubeService = require('./services/youtubeService');
+              await youtubeService.deleteYouTubeBroadcast(stream.id);
+            } catch (e) { }
+            updateData.youtube_broadcast_id = null;
+            updateData.youtube_stream_id = null;
+          }
+          updateData.youtube_channel_id = targetChannel.id;
+          channelSwitched = true;
+        }
+      }
+
       if (req.body.scheduleStartTime) {
         const scheduleStartDate = parseScheduleDateTime(req.body.scheduleStartTime);
         if (scheduleStartDate) {
@@ -3735,7 +3771,7 @@ app.put('/api/streams/:id', isAuthenticated, streamThumbnailUpload, async (req, 
         updateData.youtube_thumbnail = `/uploads/thumbnails/${req.file.filename}`;
       }
       
-      if (stream.youtube_broadcast_id) {
+      if (stream.youtube_broadcast_id && !channelSwitched) {
         try {
           const user = await User.findById(req.session.userId);
           if (user.youtube_client_id && user.youtube_client_secret) {
@@ -3976,6 +4012,13 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
     }
     if (stream.user_id !== req.session.userId) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this stream' });
+    }
+    if (stream.status === 'live') {
+      // stop the ffmpeg process before its row disappears — a detached
+      // process that outlives its database entry would stream forever
+      try {
+        await streamingService.stopStream(req.params.id);
+      } catch (e) { }
     }
     const result = await Stream.delete(req.params.id, req.session.userId);
     if (result.deleted) {
@@ -4708,15 +4751,11 @@ const server = app.listen(port, '0.0.0.0', async () => {
     console.log(`  http://localhost:${port}`);
   }
   try {
-    const streams = await Stream.findAll(null, 'live');
-    if (streams && streams.length > 0) {
-      console.log(`Resetting ${streams.length} live streams to offline state...`);
-      for (const stream of streams) {
-        await Stream.updateStatus(stream.id, 'offline');
-      }
-    }
+    // detached ffmpeg processes that survived a restart are re-adopted here;
+    // live streams without a running process are reset to offline
+    await streamingService.adoptRunningStreams();
   } catch (error) {
-    console.error('Error resetting stream statuses:', error);
+    console.error('Error restoring stream states:', error);
   }
   schedulerService.init(streamingService);
   rotationService.init();
