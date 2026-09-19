@@ -4106,11 +4106,14 @@ app.post('/api/streams/:id/status', isAuthenticated, [
           console.warn('Failed to stop FFmpeg process:', result.error);
         }
       } else if (stream.status === 'scheduled') {
+        // cancelling a schedule only flips the status — the start/end times
+        // stay untouched so the stream can be rescheduled from the edit form
+        // with its previous schedule already filled in
         await Stream.update(streamId, {
-          schedule_time: null,
-          end_time: null,
-          status: 'offline'
+          status: 'offline',
+          status_updated_at: new Date().toISOString()
         });
+        return res.json({ success: true, stream: await Stream.findById(streamId) });
       }
       const result = await Stream.updateStatus(streamId, 'offline', req.session.userId);
       if (!result.updated) {

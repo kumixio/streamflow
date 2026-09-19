@@ -2,7 +2,7 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 26 file — 22 diedit, 4 file baru (+2112 / −1225 baris, di luar dokumen ini).**
+**Total: 27 file — 23 diedit, 4 file baru (+2161 / −1228 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
@@ -19,6 +19,7 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `public/js/stream-modal.js` | diedit | Revive tombol submit saat modal dibuka ulang |
 | `public/sw.js` | diedit | Static resources jadi network-first, precache + csrf.js + custom-dialog.js, versi cache 1.2.0 |
 | `scripts/cleanup-orphan-thumbnails.js` | **baru** | Sweep file thumbnail yatim (dry-run default) |
+| `services/schedulerService.js` | diedit | Stream scheduled yang gagal start berulang di-parkir offline setelah 5 percobaan (dulu: retry selamanya tiap 15 detik) + alasan gagal tercatat di console stream; parkir & cancel hanya mengubah status, data waktu tersimpan |
 | `services/youtubeService.js` | diedit | MIME type thumbnail mengikuti ekstensi file; validasi `is_connected` sebelum pakai channel |
 | `services/streamingService.js` | diedit | ffmpeg detached di Linux (survive restart), log ffmpeg ke file + tailer, adopsi proses via PID saat boot, `gracefulShutdown` tidak lagi membunuh stream |
 | `utils/storage.js` | diedit | Tambah helper `deleteLocalUpload` |
@@ -50,6 +51,7 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 9. **Disconnect channel YouTube tidak lagi menghapus row-nya** — stream yang terikat channel tidak akan kehilangan channel-nya saat disconnect/connect ulang (dulu: row dihapus, connect ulang membuat row ber-ID baru, semua stream lama putus). Channel disconnected tampil redup dengan badge + tombol Reconnect di Settings, dan stream yang dipakai jalan ditolak dengan pesan jelas sampai channel di-reconnect.
 10. **Channel bisa diganti saat edit stream** — modal edit kini punya tombol Change + daftar channel (sebelumnya hanya tampilan, channel permanen sejak create). Batas: gak bisa ganti channel saat stream sedang live; kalau stream pernah jalan (ada broadcast lama di channel sebelumnya), broadcast lama dihapus dan dibuat ulang di channel baru saat stream start berikutnya.
 11. **Filter di halaman Streams (dashboard)** — dropdown status (All/Live/Scheduled/Offline) + filter rentang tanggal via modal date picker (mis. dari tanggal 12 sampai hari ini, atau 12–13). Tanggal yang dibandingkan: jadwal stream → waktu start → tanggal dibuat (yang pertama ada). Judul panjang di tabel History kini di-truncate (tooltip tetap penuh) sehingga tabel gak scroll horizontal lagi.
+12. **Stream scheduled yang macet gak loop selamanya** — kalau start gagal 5x beruntun (dalam window 1 jam), stream otomatis di-parkir `offline` dengan alasan kegagalannya tercatat di console log stream-nya (sebelumnya: dicoba ulang tiap 15 detik tanpa batas, membanjiri log dan memukul API). **Cancel schedule maupun parkir-gagal hanya mengubah status** — jam mulai & selesai tetap tersimpan, jadi buka form edit langsung terisi jadwal lama dan reschedule tinggal simpan ulang (dulu: semua waktu terhapus saat cancel).
 
 ---
 

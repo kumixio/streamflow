@@ -4,6 +4,14 @@ const scheduledTerminations = new Map();
 const SCHEDULE_CHECK_INTERVAL = 15000;
 const DURATION_CHECK_INTERVAL = 30000;
 
+// a stream whose schedule time has passed is retried every sweep — without a
+// cap, one broken stream (dead token, missing file) hammers the log and the
+// YouTube API forever. Give up after this many consecutive failures within
+// the window, then park the stream offline with the reason in its console.
+const scheduleStartFailures = new Map();
+const MAX_SCHEDULE_START_ATTEMPTS = 5;
+const SCHEDULE_FAILURE_WINDOW_MS = 60 * 60 * 1000;
+
 let streamingService = null;
 let initialized = false;
 let scheduleIntervalId = null;
@@ -49,11 +57,45 @@ async function checkScheduledStreams() {
 
       if (!result.success) {
         console.error(`[Scheduler] Failed to start stream ${stream.id}: ${result.error}`);
+        recordScheduleStartFailure(stream, result.error);
+      } else {
+        scheduleStartFailures.delete(stream.id);
       }
     }
   } catch (error) {
     console.error('[Scheduler] Error checking scheduled streams:', error);
   }
+}
+
+function recordScheduleStartFailure(stream, errorMessage) {
+  const now = Date.now();
+  const entry = scheduleStartFailures.get(stream.id);
+
+  if (!entry || now - entry.firstFailedAt > SCHEDULE_FAILURE_WINDOW_MS) {
+    // first failure, or the previous streak is stale — start a fresh window
+    scheduleStartFailures.set(stream.id, { count: 1, firstFailedAt: now });
+    return;
+  }
+
+  entry.count += 1;
+  if (entry.count < MAX_SCHEDULE_START_ATTEMPTS) {
+    return;
+  }
+
+  scheduleStartFailures.delete(stream.id);
+  console.error(`[Scheduler] Stream ${stream.id} failed ${entry.count} start attempts (${errorMessage}) — marking offline`);
+
+  (async () => {
+    try {
+      streamingService.addStreamLog(stream.id, `Schedule failed: ${errorMessage} — gave up after ${entry.count} attempts, stream set offline (schedule times are kept). Edit the stream to reschedule.`);
+    } catch (e) { }
+    // only the status changes: the schedule times stay so rescheduling from
+    // the edit form is just a tweak away
+    await Stream.update(stream.id, {
+      status: 'offline',
+      status_updated_at: new Date().toISOString()
+    });
+  })().catch((e) => console.error('[Scheduler] Failed to park stream offline:', e.message));
 }
 
 async function checkStreamDurations() {

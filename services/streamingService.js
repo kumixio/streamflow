@@ -1622,6 +1622,7 @@ module.exports = {
   getActiveStreams,
   getActiveStreamInfo,
   getStreamLogs,
+  addStreamLog,
   syncStreamStatuses,
   healthCheckStreams,
   saveStreamHistory,
