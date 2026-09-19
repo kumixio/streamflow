@@ -346,36 +346,6 @@
   </div>
 </div>
 
-<div id="confirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden transition-opacity">
-  <div class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-dark-800 rounded-lg shadow-xl w-full max-w-md border border-gray-600/50 transform transition-all opacity-0 scale-95" id="confirmModalContent">
-      <div class="flex items-center justify-between p-4 border-b border-gray-600/50">
-        <div class="flex items-center">
-          <h3 class="text-lg font-medium" id="modalTitle">Confirm Action</h3>
-        </div>
-        <button onclick="closeModal()" class="rounded-full w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
-          <i class="ti ti-x"></i>
-        </button>
-      </div>
-      
-      <div class="p-6">
-        <p class="text-gray-300" id="modalMessage">Are you sure you want to perform this action?</p>
-      </div>
-      
-      <div class="flex justify-end p-4 border-t border-gray-600/50">
-        <button onclick="closeModal()" 
-          class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors mr-3">
-          Cancel
-        </button>
-        <button id="confirmButton" 
-          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
-          Confirm
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div id="toast" class="fixed top-16 right-4 bg-dark-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 hidden flex items-center">
   <i id="toast-icon" class="mr-2"></i>
   <span id="toast-message"></span>
@@ -472,8 +442,6 @@
 </style>
 
 <script>
-let currentAction = null;
-
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
   const toastIcon = document.getElementById('toast-icon');
@@ -681,73 +649,37 @@ document.getElementById('createUserForm').addEventListener('submit', function(e)
   });
 });
 
-function deleteUser(userId, username) {
-  const title = 'Delete User';
-  const message = `Are you sure you want to delete user "${username}"? This action cannot be undone.`;
-  
-  showConfirmModal(title, message, () => {
-    fetch('/api/users/delete', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showToast('User deleted successfully', 'success');
-        setTimeout(() => location.reload(), 1000);
-      } else {
-        showToast('Error: ' + data.message, 'error');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      showToast('An error occurred while deleting user', 'error');
-    });
+async function deleteUser(userId, username) {
+  const { confirmed } = await createModalDialog({
+    type: 'danger',
+    icon: 'ti-user-minus',
+    title: 'Delete User',
+    message: `Are you sure you want to delete user "${username}"? This action cannot be undone.`,
+    confirmText: 'Delete'
+  });
+  if (!confirmed) return;
+
+  fetch('/api/users/delete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('User deleted successfully', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showToast('Error: ' + data.message, 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('An error occurred while deleting user', 'error');
   });
 }
-
-function showConfirmModal(title, message, onConfirm) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalMessage').textContent = message;
-  currentAction = onConfirm;
-  
-  const modal = document.getElementById('confirmModal');
-  const modalContent = document.getElementById('confirmModalContent');
-  
-  modal.classList.remove('hidden');
-  
-  setTimeout(() => {
-    modal.classList.remove('opacity-0');
-    modalContent.classList.remove('opacity-0', 'scale-95');
-    modalContent.classList.add('opacity-100', 'scale-100');
-  }, 10);
-}
-
-function closeModal() {
-  const modal = document.getElementById('confirmModal');
-  const modalContent = document.getElementById('confirmModalContent');
-  
-  modal.classList.add('opacity-0');
-  modalContent.classList.remove('opacity-100', 'scale-100');
-  modalContent.classList.add('opacity-0', 'scale-95');
-  
-  setTimeout(() => {
-    modal.classList.add('hidden');
-    currentAction = null;
-  }, 200);
-}
-
-function confirmAction() {
-  if (currentAction) {
-    currentAction();
-  }
-  closeModal();
-}
-
-document.getElementById('confirmButton').addEventListener('click', confirmAction);
 
 document.getElementById('searchInput').addEventListener('input', filterUsers);
 document.getElementById('roleFilter').addEventListener('change', filterUsers);

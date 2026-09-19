@@ -1060,6 +1060,49 @@ app.get('/history', isAuthenticated, async (req, res) => {
     });
   }
 });
+// clears every history entry for the logged-in user in one call. Finished
+// (offline) streams tied to those entries are removed too, mirroring the
+// single-entry delete below
+app.delete('/api/history', isAuthenticated, async (req, res) => {
+  try {
+    const db = require('./db/database').db;
+    const userId = req.session.userId;
+
+    const finishedStreams = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT DISTINCT s.id, s.youtube_thumbnail
+         FROM stream_history h
+         JOIN streams s ON s.id = h.stream_id
+         WHERE h.user_id = ? AND s.status = 'offline'`,
+        [userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      db.run('DELETE FROM stream_history WHERE user_id = ?', [userId], function (err) {
+        if (err) reject(err);
+        else resolve(this);
+      });
+    });
+
+    for (const stream of finishedStreams) {
+      await Stream.delete(stream.id, userId);
+      deleteLocalUpload(stream.youtube_thumbnail);
+    }
+
+    res.json({ success: true, message: 'All history entries deleted', deleted: result.changes });
+  } catch (error) {
+    console.error('Error clearing history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear history'
+    });
+  }
+});
 app.delete('/api/history/:id', isAuthenticated, async (req, res) => {
   try {
     const db = require('./db/database').db;

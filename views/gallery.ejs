@@ -843,62 +843,6 @@ async function moveVideoToFolder(videoId, folderId) {
   }
 }
 
-function createModalDialog(options) {
-  const dialog = document.createElement('div');
-  dialog.id = 'custom-modal';
-  dialog.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm modal-overlay';
-  const themes = {
-    'info': { icon: options.icon || 'ti-info-circle', color: 'text-primary', bg: 'bg-primary/10', button: 'bg-primary hover:bg-blue-600' },
-    'danger': { icon: options.icon || 'ti-alert-triangle', color: 'text-red-400', bg: 'bg-red-500/10', button: 'bg-red-500 hover:bg-red-600' }
-  };
-  const theme = themes[options.type || 'info'];
-  dialog.innerHTML = `
-    <div class="max-w-md w-full mx-4">
-      <div class="bg-dark-800 rounded-lg shadow-xl overflow-hidden">
-        <div class="p-6">
-          <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-full ${theme.bg} flex items-center justify-center shrink-0">
-              <i class="ti ${theme.icon} ${theme.color} text-2xl"></i>
-            </div>
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold">${options.title}</h3>
-              <p class="text-gray-400 text-sm mt-1">${options.message}</p>
-            </div>
-          </div>
-          ${options.hasInput ? `
-          <input type="text" id="modal-input" class="mt-4 w-full bg-dark-700 border border-gray-600 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" value="${options.inputValue || ''}" autofocus>
-          ` : ''}
-        </div>
-        <div class="flex justify-end gap-3 p-4 border-t border-gray-700">
-          <button id="modal-cancel-btn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors">Cancel</button>
-          <button id="modal-confirm-btn" class="${options.confirmClass || theme.button} px-4 py-2 text-white rounded-lg transition-colors">${options.confirmText || 'Confirm'}</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(dialog);
-  document.body.classList.add('overflow-hidden');
-  
-  return new Promise((resolve) => {
-    const close = (confirmed = false, value = null) => {
-      document.body.classList.remove('overflow-hidden');
-      dialog.remove();
-      resolve({ confirmed, value });
-    };
-    document.getElementById('modal-confirm-btn').addEventListener('click', () => {
-      const value = options.hasInput ? document.getElementById('modal-input').value : null;
-      close(true, value);
-    });
-    document.getElementById('modal-cancel-btn').addEventListener('click', () => close());
-    dialog.addEventListener('click', (e) => { if (e.target === dialog) close(); });
-    if (options.hasInput) {
-      const input = document.getElementById('modal-input');
-      input.focus();
-      input.select();
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') close(true, input.value); });
-    }
-  });
-}
 
 function openUploadModal() {
   const modal = document.getElementById('uploadModal');

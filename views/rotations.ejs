@@ -1261,8 +1261,15 @@ async function compressRotationThumbnail(file) {
 }
 
 async function deleteRotation(id) {
-  if (!confirm('Are you sure you want to delete this rotation?')) return;
-  
+  const { confirmed } = await createModalDialog({
+    type: 'danger',
+    icon: 'ti-trash',
+    title: 'Delete Rotation',
+    message: 'Are you sure you want to delete this rotation?',
+    confirmText: 'Delete'
+  });
+  if (!confirmed) return;
+
   try {
     const response = await fetch(`/api/rotations/${id}`, {
       method: 'DELETE',

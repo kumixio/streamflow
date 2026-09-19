@@ -2,25 +2,32 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 16 file — 13 diedit, 3 file baru (+1053 / −798 baris).**
+**Total: 23 file — 19 diedit, 4 file baru (+1405 / −1126 baris).**
 
 | File | Status | Ringkasan |
 |---|---|---|
-| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators |
+| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators, route hapus semua history |
 | `db/database.js` | diedit | Tambah index `idx_stream_history_stream_id` |
-| `middleware/uploadMiddleware.js` | diedit | Tambah `uploadStreamThumbnail` (limit 2MB) |
+| `middleware/uploadMiddleware.js` | diedit | Tambah `uploadStreamThumbnail` (limit 2MB) + `defParamCharset: 'utf8'` di semua instance multer |
 | `models/Stream.js` | diedit | Stream yang sudah selesai di-hide dari list dashboard |
 | `package.json` | diedit | multer 1.x → 2.4.0, blok `allowScripts` npm |
 | `public/js/csrf.js` | **baru** | Injector header CSRF global (fetch + XMLHttpRequest) |
+| `public/js/custom-dialog.js` | **baru** | Dialog konfirmasi/prompt in-app shared (pengganti dialog bawaan browser) |
 | `public/js/schedule-picker.js` | **baru** | Komponen schedule picker kustom (kalender + slot waktu) |
 | `public/js/stream-modal.js` | diedit | Revive tombol submit saat modal dibuka ulang |
-| `public/sw.js` | diedit | Static resources jadi network-first, precache + csrf.js, versi cache 1.1.1 |
+| `public/sw.js` | diedit | Static resources jadi network-first, precache + csrf.js + custom-dialog.js, versi cache 1.2.0 |
 | `scripts/cleanup-orphan-thumbnails.js` | **baru** | Sweep file thumbnail yatim (dry-run default) |
 | `services/youtubeService.js` | diedit | MIME type thumbnail mengikuti ekstensi file |
 | `utils/storage.js` | diedit | Tambah helper `deleteLocalUpload` |
 | `utils/videoProcessor.js` | diedit | `generateImageThumbnail` → `generateRotationThumbnail` |
-| `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO |
-| `views/layout.ejs` | diedit | Meta CSRF + csrf.js, pembersihan UI (notifikasi/donate/footer), avatar pindah ke header |
+| `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO, dialog shared |
+| `views/gallery.ejs` | diedit | Definisi dialog duplikat diganti file shared |
+| `views/history.ejs` | diedit | Dialog custom + tombol Delete All |
+| `views/layout.ejs` | diedit | Meta CSRF + csrf.js + custom-dialog.js, pembersihan UI (notifikasi/donate/footer), avatar pindah ke header |
+| `views/playlist.ejs` | diedit | Dialog hapus playlist pakai dialog custom |
+| `views/rotations.ejs` | diedit | Dialog hapus rotation pakai dialog custom |
+| `views/settings.ejs` | diedit | 4 dialog konfirmasi (reCAPTCHA, logs, disconnect channel) pakai dialog custom |
+| `views/users.ejs` | diedit | Modal konfirmasi statis lama diganti dialog shared |
 | `views/welcome.ejs` | diedit | Halaman welcome disederhanakan |
 
 ---
@@ -34,6 +41,8 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 3. **Semua request mutasi ke `/api` wajib bawa CSRF token** (header `X-CSRF-Token`, disuntik otomatis oleh `public/js/csrf.js`).
 4. **Thumbnail stream disimpan sebagai file original tanpa resize** (YouTube butuh ≥1280×720), dibatasi 2MB, dan file lamanya ikut terhapus saat diganti/dihapus.
 5. **Form YouTube (create & edit) pakai schedule picker baru** — submit dalam format ISO absolut sehingga timezone-safe, dan tombol delete/edit aktif untuk stream scheduled (dulu disabled).
+6. **Semua dialog konfirmasi memakai dialog custom in-app** (`createModalDialog`) — tidak ada lagi dialog bawaan browser (`confirm()`) yang bisa diblokir/langsung tertutup sendiri.
+7. **Halaman History punya tombol Delete All** — hapus semua entri sekaligus dalam satu klik (dengan konfirmasi); stream finished yang terikat ikut terhapus beserta thumbnail-nya.
 
 ---
 
@@ -165,6 +174,32 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 
 ### `package.json`
 - Blok `"allowScripts"` berisi persetujuan build script native untuk `bcrypt@6.0.0` dan `sqlite3@5.1.7` — npm versi baru memblokir install script native secara default; blok ini menyimpan approval agar `npm install` berjalan mulus.
+
+---
+
+## 8. Dialog Custom & Hapus Semua History
+
+### `public/js/custom-dialog.js` — **BARU**
+- Dialog konfirmasi/prompt in-app pengganti `confirm()` bawaan browser (yang di beberapa browser/ekstensi bisa diblokir atau langsung tertutup sendiri). Promise-based: `const { confirmed, value } = await createModalDialog({ ... })`.
+- 4 tema (info/danger/warning/success), dukungan text input (`hasInput`, untuk dialog rename/create folder), tombol Escape = batal, klik backdrop = batal, animasi open/close, scroll body di-lock selama dialog terbuka.
+- `title`, `message`, dan `inputValue` di-set via `textContent`/`.value` — konten user (judul stream/video/channel) tidak bisa menyuntik HTML. (Versi lama di dashboard/gallery meng-inject `message` langsung ke `innerHTML`.)
+- Dimuat di `views/layout.ejs` untuk semua halaman, masuk precache service worker (`CACHE_VERSION` → 1.2.0).
+
+### Semua dialog bawaan browser diganti
+- `views/history.ejs`, `views/rotations.ejs`, `views/playlist.ejs` — `confirm()` untuk hapus history/rotation/playlist diganti dialog custom.
+- `views/settings.ejs` — 4 titik: hapus reCAPTCHA keys, clear all logs, disconnect semua channel YouTube, disconnect satu channel.
+- `views/users.ejs` — modal konfirmasi statis lama (`#confirmModal` + `showConfirmModal`/`confirmAction`/`currentAction`) dihapus seluruhnya, `deleteUser` pakai dialog shared.
+- `views/dashboard.ejs` & `views/gallery.ejs` — definisi `createModalDialog` yang tadinya duplikat di masing-masing halaman dihapus; keduanya sekarang pakai file shared. Bentuk return diseragamkan jadi `{ confirmed, value }` (dashboard sebelumnya menerima boolean langsung).
+
+### Hapus Semua History
+- `app.js` — route baru `DELETE /api/history`: menghapus semua entri `stream_history` milik user dalam satu call. Stream finished (offline) yang terikat entri-entri itu ikut terhapus beserta file thumbnail-nya — cascade sama persis dengan hapus satu entri. Dilindungi auth + CSRF seperti endpoint mutasi lain.
+- `views/history.ejs` — tombol **Delete All** di header (hanya muncul kalau ada history), dialog konfirmasinya menyebut jumlah entri; setelah sukses toast menampilkan jumlah terhapus lalu halaman reload.
+- Bonus fix: judul entri untuk dialog hapus-satu kini dibaca dari atribut `data-title` row (dulu di-inject ke atribut `onclick` — judul yang mengandung tanda kutip/apostrof merusak handler-nya).
+
+### Fix nama file UTF-8 saat upload (mojibake)
+- **Masalah (ada juga di streamflow asli):** nama file non-ASCII pada upload gallery jadi rusak — `A1 — Garden Café….mp4` tersimpan jadi `A1 â Garden CafÃ©….mp4`. Penyebab: browser mengirim nama file multipart sebagai byte UTF-8 mentah, tapi busboy (parser di belakang multer) mendecodenya sebagai latin1 secara default.
+- `middleware/uploadMiddleware.js` — semua 5 instance multer kini memakai `defParamCharset: 'utf8'` (didukung multer 2.x): nama file tersimpan utuh sebagai judul video/audio. Nama file fisik di disk tetap di-sanitize jadi ASCII oleh `getUniqueFilename` (perilaku lama, aman untuk URL/filesystem). Jalur upload chunked tidak terdampak (namanya lewat JSON).
+- File yang terlanjur rusak namanya sebelum fix ini tidak berubah — bisa dibereskan lewat fitur Rename di gallery.
 
 ---
 

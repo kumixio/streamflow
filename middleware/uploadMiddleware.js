@@ -75,24 +75,31 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
+// browsers send multipart filenames as raw UTF-8 bytes, but busboy decodes
+// them as latin1 by default — turning "Café" into "CafÃ©". Decode as UTF-8
+// so non-ASCII filenames survive the upload.
 const uploadVideo = multer({
   storage: videoStorage,
-  fileFilter: videoFilter
+  fileFilter: videoFilter,
+  defParamCharset: 'utf8'
 });
 
 const uploadAudio = multer({
   storage: audioStorage,
-  fileFilter: audioFilter
+  fileFilter: audioFilter,
+  defParamCharset: 'utf8'
 });
 
 const upload = multer({
   storage: avatarStorage,
-  fileFilter: imageFilter
+  fileFilter: imageFilter,
+  defParamCharset: 'utf8'
 });
 
 const uploadThumbnail = multer({
   storage: thumbnailStorage,
-  fileFilter: imageFilter
+  fileFilter: imageFilter,
+  defParamCharset: 'utf8'
 });
 
 // stream thumbnails are stored and served as original files and forwarded
@@ -100,7 +107,8 @@ const uploadThumbnail = multer({
 const uploadStreamThumbnail = multer({
   storage: thumbnailStorage,
   fileFilter: imageFilter,
-  limits: { fileSize: 2 * 1024 * 1024 }
+  limits: { fileSize: 2 * 1024 * 1024 },
+  defParamCharset: 'utf8'
 });
 
 module.exports = {

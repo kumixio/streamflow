@@ -687,23 +687,30 @@ function viewPlaylist(playlistId) {
     });
 }
 
-function deletePlaylist(playlistId, playlistName) {
-  if (confirm(`Are you sure you want to delete "${playlistName}"?`)) {
-    fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          showToast('Playlist deleted successfully', 'success');
-          location.reload();
-        } else {
-          showToast(data.message || 'Error deleting playlist', 'error');
-        }
-      })
-      .catch(error => {
-        console.error('Error deleting playlist:', error);
-        showToast('Error deleting playlist', 'error');
-      });
-  }
+async function deletePlaylist(playlistId, playlistName) {
+  const { confirmed } = await createModalDialog({
+    type: 'danger',
+    icon: 'ti-trash',
+    title: 'Delete Playlist',
+    message: `Are you sure you want to delete "${playlistName}"?`,
+    confirmText: 'Delete'
+  });
+  if (!confirmed) return;
+
+  fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('Playlist deleted successfully', 'success');
+        location.reload();
+      } else {
+        showToast(data.message || 'Error deleting playlist', 'error');
+      }
+    })
+    .catch(error => {
+      console.error('Error deleting playlist:', error);
+      showToast('Error deleting playlist', 'error');
+    });
 }
 
 function submitPlaylist() {

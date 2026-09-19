@@ -1,6 +1,6 @@
 
 const CACHE_NAME = 'streamflow-v2-cache';
-const CACHE_VERSION = '1.1.1';
+const CACHE_VERSION = '1.2.0';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_RESOURCES = [
@@ -11,6 +11,7 @@ const STATIC_RESOURCES = [
 
   '/css/styles.css',
   '/js/csrf.js',
+  '/js/custom-dialog.js',
   '/js/schedule-picker.js',
   '/js/stream-modal.js',
 

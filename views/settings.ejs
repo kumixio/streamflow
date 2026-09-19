@@ -811,7 +811,14 @@
       const removeRecaptchaBtn = document.getElementById('remove-recaptcha');
       if (removeRecaptchaBtn) {
         removeRecaptchaBtn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to remove reCAPTCHA keys? This will disable reCAPTCHA protection.')) return;
+          const { confirmed } = await createModalDialog({
+            type: 'danger',
+            icon: 'ti-shield-off',
+            title: 'Remove reCAPTCHA Keys',
+            message: 'Are you sure you want to remove reCAPTCHA keys? This will disable reCAPTCHA protection.',
+            confirmText: 'Remove'
+          });
+          if (!confirmed) return;
           
           try {
             const response = await fetch('/api/settings/recaptcha', {
@@ -907,7 +914,14 @@
       }
 
       async function clearLogs() {
-        if (!confirm('Are you sure you want to clear all logs?')) return;
+        const { confirmed } = await createModalDialog({
+          type: 'danger',
+          icon: 'ti-eraser',
+          title: 'Clear All Logs',
+          message: 'Are you sure you want to clear all logs?',
+          confirmText: 'Clear Logs'
+        });
+        if (!confirmed) return;
         
         try {
           const response = await fetch('/api/settings/logs/clear', {
@@ -1065,7 +1079,14 @@
       const disconnectAllBtn = document.getElementById('disconnect-all-youtube');
       if (disconnectAllBtn) {
         disconnectAllBtn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to disconnect ALL YouTube channels?')) return;
+          const { confirmed } = await createModalDialog({
+            type: 'danger',
+            icon: 'ti-plug-x',
+            title: 'Disconnect All Channels',
+            message: 'Are you sure you want to disconnect ALL YouTube channels?',
+            confirmText: 'Disconnect All'
+          });
+          if (!confirmed) return;
           
           try {
             const response = await fetch('/api/settings/youtube-disconnect', {
@@ -1121,7 +1142,14 @@
   }
 
   async function disconnectChannel(channelId, channelName) {
-    if (!confirm(`Are you sure you want to disconnect "${channelName}"?`)) return;
+    const { confirmed } = await createModalDialog({
+      type: 'danger',
+      icon: 'ti-plug-x',
+      title: 'Disconnect Channel',
+      message: `Are you sure you want to disconnect "${channelName}"?`,
+      confirmText: 'Disconnect'
+    });
+    if (!confirmed) return;
     
     try {
       const response = await fetch(`/api/settings/youtube-channel/${channelId}`, {

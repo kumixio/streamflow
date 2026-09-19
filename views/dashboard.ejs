@@ -1340,125 +1340,6 @@
       toggleChannelSelector();
     }
 
-
-
-    function createModalDialog(options) {
-      const dialog = document.createElement('div');
-      dialog.id = 'custom-modal';
-      dialog.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300';
-      
-      const themes = {
-        'info': {
-          icon: options.icon || 'ti-info-circle',
-          color: 'text-blue-600',
-          bg: 'bg-blue-600/10',
-          border: 'border-gray-600/50',
-          button: 'bg-blue-600 hover:bg-blue-700',
-          buttonIcon: 'ti-check'
-        },
-        'danger': {
-          icon: options.icon || 'ti-alert-triangle',
-          color: 'text-red-400',
-          bg: 'bg-red-500/10',
-          border: 'border-gray-600/50',
-          button: 'bg-red-500 hover:bg-red-600',
-          buttonIcon: 'ti-trash'
-        },
-        'warning': {
-          icon: options.icon || 'ti-alert-triangle',
-          color: 'text-yellow-400',
-          bg: 'bg-yellow-500/10',
-          border: 'border-yellow-500/50',
-          button: 'bg-yellow-500 hover:bg-yellow-600',
-          buttonIcon: 'ti-alert-circle'
-        },
-        'success': {
-          icon: options.icon || 'ti-check-circle',
-          color: 'text-green-400',
-          bg: 'bg-green-500/10',
-          border: 'border-green-500/50',
-          button: 'bg-green-500 hover:bg-green-600',
-          buttonIcon: 'ti-check'
-        }
-      };
-      
-      const theme = themes[options.type || 'info'];
-      
-      dialog.innerHTML = `
-        <div class="transform transition-all duration-300 opacity-0 scale-95 modal-content max-w-md w-full mx-4">
-          <div class="bg-dark-800 rounded-lg shadow-xl border ${theme.border} overflow-hidden">
-            <div class="px-6 py-5 flex items-center">
-              <div class="w-12 h-12 rounded-full ${theme.bg} flex items-center justify-center mr-4 shrink-0">
-                <i class="ti ${theme.icon} ${theme.color} text-2xl"></i>
-              </div>
-              <div class="flex-1">
-                <h3 class="text-lg font-medium text-white">${options.title}</h3>
-                <p class="text-gray-400 text-sm mt-1">${options.message}</p>
-              </div>
-            </div>
-            <div class="px-6 py-4 flex justify-end space-x-3 border-t border-gray-600/50">
-              <button id="modal-cancel-btn" class="px-4 py-2.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors text-sm font-medium flex items-center">
-                <i class="ti ti-x mr-1.5"></i>
-                ${options.cancelText || 'Cancel'}
-              </button>
-              <button id="modal-confirm-btn" class="${options.confirmClass || theme.button} px-4 py-2.5 text-white rounded-lg transition-colors text-sm font-medium flex items-center">
-                <i class="ti ${theme.buttonIcon} mr-1.5"></i>
-                ${options.confirmText || 'Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(dialog);
-      document.body.classList.add('overflow-hidden');
-      
-      setTimeout(() => {
-        const modalContent = dialog.querySelector('.modal-content');
-        if (modalContent) {
-          modalContent.classList.replace('opacity-0', 'opacity-100');
-          modalContent.classList.replace('scale-95', 'scale-100');
-        }
-      }, 10);
-      
-      return new Promise((resolve) => {
-        document.getElementById('modal-confirm-btn').addEventListener('click', () => {
-          closeModalWithAnimation(true);
-        });
-        
-        document.getElementById('modal-cancel-btn').addEventListener('click', () => {
-          closeModalWithAnimation(false);
-        });
-        
-        document.addEventListener('keydown', function escapeHandler(e) {
-          if (e.key === 'Escape') {
-            closeModalWithAnimation(false);
-            document.removeEventListener('keydown', escapeHandler);
-          }
-        });
-        
-        dialog.addEventListener('click', function (e) {
-          if (e.target === dialog) {
-            closeModalWithAnimation(false);
-          }
-        });
-        
-        function closeModalWithAnimation(confirmed) {
-          const modalContent = dialog.querySelector('.modal-content');
-          if (modalContent) {
-            modalContent.classList.replace('opacity-100', 'opacity-0');
-            modalContent.classList.replace('scale-100', 'scale-95');
-          }
-          
-          setTimeout(() => {
-            document.body.classList.remove('overflow-hidden');
-            dialog.remove();
-            resolve(confirmed);
-          }, 200);
-        }
-      });
-    }
-
     function formatMemory(value) {
       if (typeof value !== 'string') return '0 MB';
       const match = value.match(/^(\d+\.?\d*)\s*(\w+)$/);
@@ -2461,7 +2342,7 @@
     async function deleteStream(streamId) {
       if (!streamId) return;
       
-      const confirmed = await createModalDialog({
+      const { confirmed } = await createModalDialog({
         type: 'danger',
         icon: 'ti-alert-triangle',
         title: 'Delete Stream',
@@ -2470,7 +2351,7 @@
         cancelText: 'Cancel',
         confirmClass: 'bg-red-500 hover:bg-red-600'
       });
-      
+
       if (confirmed) {
         fetch(`/api/streams/${streamId}`, {
           method: 'DELETE',
