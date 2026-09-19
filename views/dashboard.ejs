@@ -1076,14 +1076,14 @@
                           </div>
                         </div>
 
-                        <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 1) { %>
+                        <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0) { %>
                         <button type="button" onclick="toggleEditChannelSelector()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm flex-shrink-0">
                           <i class="ti ti-switch-horizontal mr-1"></i>Change
                         </button>
                         <% } %>
                       </div>
 
-                      <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 1) { %>
+                      <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0) { %>
                       <div id="editChannelSelectorDropdown" class="hidden mt-3 pt-3 border-t border-gray-700 space-y-2">
                         <% youtubeChannels.forEach(function(channel) { %>
                         <button type="button" onclick="selectEditYtChannel(this)"
@@ -1888,7 +1888,13 @@
         emptyState.style.display = 'table-row';
         const emptyStateMessage = emptyState.querySelector('p.text-gray-500');
         if (emptyStateMessage) {
-          emptyStateMessage.textContent = currentSearch ? 'No streams match your search' : 'Create your first stream to start broadcasting to your audience';
+          if (currentSearch) {
+            emptyStateMessage.textContent = 'No streams match your search';
+          } else if (currentStatusFilter || currentDateFilterFrom || currentDateFilterTo) {
+            emptyStateMessage.textContent = 'No streams match your filters';
+          } else {
+            emptyStateMessage.textContent = 'Create your first stream to start broadcasting to your audience';
+          }
         }
       }
       document.querySelectorAll('.block.md\\:hidden.space-y-2 > div').forEach(el => {
@@ -2230,6 +2236,8 @@
     let currentDateFilterTo = '';
 
     function applyStreamFilters() {
+      const statusSelect = document.getElementById('streams-status-filter');
+      currentStatusFilter = statusSelect ? statusSelect.value : '';
       fetchStreams(1, currentLimit, currentSearch);
     }
 
