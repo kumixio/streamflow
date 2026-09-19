@@ -507,12 +507,18 @@
                   <input type="hidden" id="ytSelectedVideoId" name="ytVideoId" value="">
 
                   <div>
-                    <label class="text-sm font-medium text-white block mb-2">Stream Title</label>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-white">Stream Title</label>
+                      <span id="ytStreamTitleCharCount" class="text-xs text-gray-500">0/100</span>
+                    </div>
                     <input type="text" id="ytStreamTitle" name="ytStreamTitle" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Enter stream title...">
                   </div>
 
                   <div>
-                    <label class="text-sm font-medium text-white block mb-2">Description</label>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-white">Description</label>
+                      <span id="ytDescriptionCharCount" class="text-xs text-gray-500">0/5000</span>
+                    </div>
                     <textarea id="ytDescription" name="ytDescription" rows="3" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary resize-y min-h-[60px]" placeholder="Enter stream description..."></textarea>
                   </div>
 
@@ -618,6 +624,17 @@
 
                   <div class="h-[42px] flex items-center justify-between">
                     <div class="flex items-center gap-2">
+                      <label class="text-sm text-gray-300">Enable Monetization</label>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="ytEnableMonetization" class="sr-only peer">
+                      <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
+                      <div class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5"></div>
+                    </label>
+                  </div>
+
+                  <div class="h-[42px] flex items-center justify-between">
+                    <div class="flex items-center gap-2">
                       <label class="text-sm text-gray-300">Enable Schedule</label>
                       <span id="ytServerTimeDisplay" class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">loading...</span>
                     </div>
@@ -628,31 +645,19 @@
                     </label>
                   </div>
 
-                  <div class="h-[42px] flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <label class="text-sm text-gray-300">Enable Monetization</label>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" id="ytEnableMonetization" class="sr-only peer">
-                      <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
-                      <div class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5"></div>
-                    </label>
+                  <div id="ytScheduleSummary" class="hidden text-xs text-gray-500 space-y-0.5">
+                    <p>Start time: <span data-sum="start" class="text-gray-300">—</span></p>
+                    <p>End time: <span data-sum="end" class="text-gray-300">—</span></p>
+                    <p>Duration: <span data-sum="duration" class="text-gray-300">—</span></p>
                   </div>
 
-                  <div id="ytScheduleSettings" class="hidden space-y-4">
-                    <div>
-                      <label class="text-xs text-gray-400 block mb-1">Start Time</label>
-                      <input type="datetime-local" id="ytScheduleStart" name="ytScheduleStart" class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
-                    </div>
-                    <div>
-                      <label class="text-xs text-gray-400 mb-1 flex items-center">
-                        <span>End Time</span>
-                        <span id="ytDurationBadge" class="ml-2 bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden">00:00</span>
-                      </label>
-                      <input type="datetime-local" id="ytScheduleEnd" name="ytScheduleEnd" class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
-                    </div>
-                  </div>
                 </div>
+              </div>
+
+              <div id="ytScheduleSettings" class="hidden mt-6">
+                <input type="hidden" id="ytScheduleStart" name="ytScheduleStart" value="">
+                <input type="hidden" id="ytScheduleEnd" name="ytScheduleEnd" value="">
+                <div id="pickerCreateYt"></div>
               </div>
             </div>
 
@@ -987,12 +992,18 @@
                   <input type="hidden" id="editYtSelectedVideoId" name="ytVideoId" value="">
 
                   <div>
-                    <label class="text-sm font-medium text-white block mb-2">Stream Title</label>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-white">Stream Title</label>
+                      <span id="editYtStreamTitleCharCount" class="text-xs text-gray-500">0/100</span>
+                    </div>
                     <input type="text" id="editYtStreamTitle" name="ytStreamTitle" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Enter stream title...">
                   </div>
 
                   <div>
-                    <label class="text-sm font-medium text-white block mb-2">Description</label>
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-sm font-medium text-white">Description</label>
+                      <span id="editYtDescriptionCharCount" class="text-xs text-gray-500">0/5000</span>
+                    </div>
                     <textarea id="editYtDescription" name="ytDescription" rows="3" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary resize-y min-h-[60px]" placeholder="Enter stream description..."></textarea>
                   </div>
 
@@ -1076,6 +1087,17 @@
 
                   <div class="h-[42px] flex items-center justify-between">
                     <div class="flex items-center gap-2">
+                      <label class="text-sm text-gray-300">Enable Monetization</label>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="editYtEnableMonetization" class="sr-only peer">
+                      <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
+                      <div class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5"></div>
+                    </label>
+                  </div>
+
+                  <div class="h-[42px] flex items-center justify-between">
+                    <div class="flex items-center gap-2">
                       <label class="text-sm text-gray-300">Enable Schedule</label>
                       <span id="editYtServerTimeDisplay" class="bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded">loading...</span>
                     </div>
@@ -1086,31 +1108,19 @@
                     </label>
                   </div>
 
-                  <div class="h-[42px] flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <label class="text-sm text-gray-300">Enable Monetization</label>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" id="editYtEnableMonetization" class="sr-only peer">
-                      <div class="w-11 h-6 bg-dark-700 rounded-full peer peer-checked:bg-primary"></div>
-                      <div class="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5"></div>
-                    </label>
+                  <div id="editYtScheduleSummary" class="hidden text-xs text-gray-500 space-y-0.5">
+                    <p>Start time: <span data-sum="start" class="text-gray-300">—</span></p>
+                    <p>End time: <span data-sum="end" class="text-gray-300">—</span></p>
+                    <p>Duration: <span data-sum="duration" class="text-gray-300">—</span></p>
                   </div>
 
-                  <div id="editYtScheduleSettings" class="hidden space-y-4">
-                    <div>
-                      <label class="text-xs text-gray-400 block mb-1">Start Time</label>
-                      <input type="datetime-local" id="editYtScheduleStart" name="ytScheduleStart" class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
-                    </div>
-                    <div>
-                      <label class="text-xs text-gray-400 mb-1 flex items-center">
-                        <span>End Time</span>
-                        <span id="editYtDurationBadge" class="ml-2 bg-gray-700 text-xs text-gray-300 px-2 py-0.5 rounded hidden">00:00</span>
-                      </label>
-                      <input type="datetime-local" id="editYtScheduleEnd" name="ytScheduleEnd" class="w-full h-[42px] px-4 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary text-sm [color-scheme:dark]">
-                    </div>
-                  </div>
                 </div>
+              </div>
+
+              <div id="editYtScheduleSettings" class="hidden mt-6">
+                <input type="hidden" id="editYtScheduleStart" name="ytScheduleStart" value="">
+                <input type="hidden" id="editYtScheduleEnd" name="ytScheduleEnd" value="">
+                <div id="pickerEditYt"></div>
               </div>
             </div>
 
@@ -1607,6 +1617,7 @@
     
     document.addEventListener('DOMContentLoaded', function() {
       updateToggleDisplay('both');
+      initStreamCharCounters();
     });
     
     updateSystemStats();
@@ -1619,6 +1630,12 @@
         const ytVideoId = document.getElementById('ytSelectedVideoId').value;
         if (!ytVideoId) {
           showToast('error', 'Please select a video before creating the stream');
+          return;
+        }
+
+        if (!validateStreamMetaLength('ytStreamTitle', 'Stream title', STREAM_META_LIMITS.title) ||
+            !validateStreamMetaLength('ytDescription', 'Description', STREAM_META_LIMITS.description) ||
+            !validateStreamMetaLength('ytTags', 'Tags', STREAM_META_LIMITS.tags)) {
           return;
         }
         
@@ -1637,8 +1654,15 @@
         if (enableSchedule) {
           const scheduleStart = document.getElementById('ytScheduleStart').value;
           const scheduleEnd = document.getElementById('ytScheduleEnd').value;
-          if (scheduleStart) ytFormData.scheduleStartTime = scheduleStart;
-          if (scheduleEnd) ytFormData.scheduleEndTime = scheduleEnd;
+          if (!scheduleStart) {
+            showToast('error', 'Please pick a start time for the schedule first.');
+            highlightScheduleStartCard('pickerCreateYt');
+            return;
+          }
+          // send absolute ISO so the stored instant is correct no matter
+          // what timezone the server runs in
+          ytFormData.scheduleStartTime = new Date(scheduleStart).toISOString();
+          if (scheduleEnd) ytFormData.scheduleEndTime = new Date(scheduleEnd).toISOString();
         }
 
         ytFormData.ytMonetization = document.getElementById('ytEnableMonetization').checked;
@@ -2019,8 +2043,8 @@
         <div>${statusBadge}</div>
         <div class="flex items-center gap-1.5">
           ${getActionButtonHTML(stream.status, stream.id, 'mobile')}
-          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}" ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}><i class="ti ti-edit text-gray-400 hover:text-white text-sm"></i></button>
-          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `deleteStream('${stream.id}')`}" ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}><i class="ti ti-trash text-gray-400 hover:text-red-400 text-sm"></i></button>
+          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' ? '' : `editStream('${stream.id}')`}" ${stream.status === 'live' ? 'disabled' : ''}><i class="ti ti-edit text-gray-400 hover:text-white text-sm"></i></button>
+          <button class="p-1 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${stream.status === 'live' ? '' : `deleteStream('${stream.id}')`}" ${stream.status === 'live' ? 'disabled' : ''}><i class="ti ti-trash text-gray-400 hover:text-red-400 text-sm"></i></button>
         </div>
       </div>
     `;
@@ -2155,14 +2179,14 @@
         <div class="flex items-center justify-end space-x-2">
           ${getActionButtonHTML(stream.status, stream.id, 'desktop')}
           <div class="ml-2 flex items-center gap-1">
-            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
-                    onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `editStream('${stream.id}')`}"
-                    ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}>
+            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' ? 'opacity-50 cursor-not-allowed' : ''}"
+                    onclick="${stream.status === 'live' ? '' : `editStream('${stream.id}')`}"
+                    ${stream.status === 'live' ? 'disabled' : ''}>
               <i class="ti ti-edit text-gray-400 hover:text-white"></i>
             </button>
-            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' || stream.status === 'scheduled' ? 'opacity-50 cursor-not-allowed' : ''}" 
-                    onclick="${stream.status === 'live' || stream.status === 'scheduled' ? '' : `deleteStream('${stream.id}')`}"
-                    ${stream.status === 'live' || stream.status === 'scheduled' ? 'disabled' : ''}>
+            <button class="p-1.5 hover:bg-dark-700 rounded transition-colors ${stream.status === 'live' ? 'opacity-50 cursor-not-allowed' : ''}"
+                    onclick="${stream.status === 'live' ? '' : `deleteStream('${stream.id}')`}"
+                    ${stream.status === 'live' ? 'disabled' : ''}>
               <i class="ti ti-trash text-gray-400 hover:text-red-400"></i>
             </button>
           </div>
@@ -2434,9 +2458,6 @@
           restoreButtons();
         });
     }
-    function editStream(streamId) {
-      console.log('Edit stream:', streamId);
-    }
     async function deleteStream(streamId) {
       if (!streamId) return;
       
@@ -2660,6 +2681,11 @@
     document.getElementById('ytThumbnail')?.addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('error', 'Thumbnail is too large. Maximum size is 2MB.');
+          e.target.value = '';
+          return;
+        }
         const reader = new FileReader();
         reader.onload = function(event) {
           document.getElementById('ytThumbnailImg').src = event.target.result;
@@ -2678,6 +2704,54 @@
         item.style.display = title.includes(searchTerm) ? 'flex' : 'none';
       });
     });
+
+    const STREAM_META_LIMITS = { title: 100, description: 5000, tags: 500 };
+
+    const streamCharCounters = [
+      { inputId: 'ytStreamTitle', max: STREAM_META_LIMITS.title },
+      { inputId: 'ytDescription', max: STREAM_META_LIMITS.description },
+      { inputId: 'editYtStreamTitle', max: STREAM_META_LIMITS.title },
+      { inputId: 'editYtDescription', max: STREAM_META_LIMITS.description },
+      { inputId: 'ytTags', max: STREAM_META_LIMITS.tags },
+      { inputId: 'editYtTags', max: STREAM_META_LIMITS.tags }
+    ];
+
+    function refreshStreamCharCounter(inputId, maxChars) {
+      const input = document.getElementById(inputId);
+      const counter = document.getElementById(inputId + 'CharCount');
+      if (!input || !counter) return;
+      const length = input.value.length;
+      const over = length > maxChars;
+      counter.textContent = `${length}/${maxChars}`;
+      counter.className = over ? 'text-xs text-red-400 font-medium' : 'text-xs text-gray-500';
+      input.classList.toggle('border-red-500', over);
+    }
+
+    function refreshAllStreamCharCounters() {
+      streamCharCounters.forEach(({ inputId, max }) => refreshStreamCharCounter(inputId, max));
+    }
+
+    function initStreamCharCounters() {
+      streamCharCounters.forEach(({ inputId, max }) => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        input.addEventListener('input', () => refreshStreamCharCounter(inputId, max));
+      });
+      refreshAllStreamCharCounters();
+    }
+
+    function validateStreamMetaLength(inputId, fieldLabel, maxChars) {
+      const input = document.getElementById(inputId);
+      if (!input) return true;
+      const length = input.value.length;
+      if (length > maxChars) {
+        refreshStreamCharCounter(inputId, maxChars);
+        showToast('error', `${fieldLabel} is too long: ${length}/${maxChars} characters (YouTube limit is ${maxChars})`);
+        input.focus();
+        return false;
+      }
+      return true;
+    }
 
     let ytTags = [];
     const ytTagsInput = document.getElementById('ytTagsInput');
@@ -3075,6 +3149,11 @@
     document.getElementById('editYtThumbnail')?.addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('error', 'Thumbnail is too large. Maximum size is 2MB.');
+          e.target.value = '';
+          return;
+        }
         const reader = new FileReader();
         reader.onload = function(event) {
           document.getElementById('editYtThumbnailImg').src = event.target.result;
@@ -3196,6 +3275,8 @@
         
         editYtTags = stream.youtube_tags ? stream.youtube_tags.split(',').filter(t => t.trim()) : [];
         renderEditYtTags();
+        refreshAllStreamCharCounters();
+        syncSchedulePickers();
 
         document.getElementById('editYtEnableMonetization').checked = stream.youtube_monetization === true || stream.youtube_monetization === 1;
 
@@ -3224,13 +3305,13 @@
           document.getElementById('editYtScheduleSettings').classList.remove('hidden');
           if (stream.schedule_time) {
             const scheduleDate = new Date(stream.schedule_time);
-            document.getElementById('editYtScheduleStart').value = formatDateTimeLocal(scheduleDate);
+            document.getElementById('editYtScheduleStart').value = toBrowserLocalInput(scheduleDate);
           } else {
             document.getElementById('editYtScheduleStart').value = '';
           }
           if (stream.end_time) {
             const endDate = new Date(stream.end_time);
-            document.getElementById('editYtScheduleEnd').value = formatDateTimeLocal(endDate);
+            document.getElementById('editYtScheduleEnd').value = toBrowserLocalInput(endDate);
           } else {
             document.getElementById('editYtScheduleEnd').value = '';
           }
@@ -3278,6 +3359,8 @@
         document.getElementById('editStreamTitle').value = stream.title;
         document.getElementById('editRtmpUrl').value = stream.rtmp_url || '';
         document.getElementById('editStreamKey').value = stream.stream_key || '';
+        refreshAllStreamCharCounters();
+        syncSchedulePickers();
         
         const editStreamTitle = document.getElementById('editStreamTitle');
         const editRtmpUrl = document.getElementById('editRtmpUrl');
@@ -3360,9 +3443,20 @@
       const modal = document.getElementById('editStreamModal');
       document.body.style.overflow = 'hidden';
       modal.classList.remove('hidden');
+      // a successful save closes the modal without restoring the submit
+      // button, so revive it here or the next open shows a dead "Saving..."
+      const editSaveBtn = document.querySelector('#editStreamModal button[type="submit"]');
+      if (editSaveBtn) {
+        editSaveBtn.disabled = false;
+        editSaveBtn.innerHTML = 'Save Changes';
+        editSaveBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+      }
       requestAnimationFrame(() => {
         modal.classList.add('active');
       });
+      // sync pickers after the modal is visible so slot lists can scroll
+      // to the prefilled times (rects are zero while display:none)
+      setTimeout(syncSchedulePickers, 250);
       updateDurationBadge(true);
     }
     
@@ -3374,6 +3468,13 @@
       const hours = String(serverDate.getHours()).padStart(2, '0');
       const minutes = String(serverDate.getMinutes()).padStart(2, '0');
       return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    // YouTube picker path only: format as the browser's own wall time.
+    // The picker submits absolute ISO strings, so no server-timezone
+    // conversion may be applied on prefill or the round trip shifts.
+    function toBrowserLocalInput(date) {
+      const p = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
     }
     function closeEditStreamModal() {
       const modal = document.getElementById('editStreamModal');
@@ -3398,6 +3499,7 @@
     }
     function resetEditModalForm() {
       document.getElementById('editStreamForm').reset();
+      syncSchedulePickers();
       document.getElementById('editStreamId').value = '';
       document.getElementById('editSelectedVideoId').value = '';
       document.getElementById('editSelectedVideo').textContent = 'Choose a video...';
@@ -3673,6 +3775,12 @@
               showToast('error', 'Please select a video before updating the stream.');
               return;
             }
+
+            if (!validateStreamMetaLength('editYtStreamTitle', 'Stream title', STREAM_META_LIMITS.title) ||
+                !validateStreamMetaLength('editYtDescription', 'Description', STREAM_META_LIMITS.description) ||
+                !validateStreamMetaLength('editYtTags', 'Tags', STREAM_META_LIMITS.tags)) {
+              return;
+            }
             
             const ytFormDataObj = {
               streamMode: 'youtube',
@@ -3690,8 +3798,16 @@
             
             const enableSchedule = document.getElementById('editYtEnableSchedule').checked;
             if (enableSchedule) {
-              ytFormDataObj.scheduleStartTime = document.getElementById('editYtScheduleStart').value;
-              ytFormDataObj.scheduleEndTime = document.getElementById('editYtScheduleEnd').value;
+              const scheduleStart = document.getElementById('editYtScheduleStart').value;
+              const scheduleEnd = document.getElementById('editYtScheduleEnd').value;
+              if (!scheduleStart) {
+                showToast('error', 'Please pick a start time for the schedule first.');
+                highlightScheduleStartCard('pickerEditYt');
+                return;
+              }
+              // absolute ISO keeps the stored instant timezone-safe (see create form)
+              ytFormDataObj.scheduleStartTime = new Date(scheduleStart).toISOString();
+              ytFormDataObj.scheduleEndTime = scheduleEnd ? new Date(scheduleEnd).toISOString() : '';
             } else {
               ytFormDataObj.scheduleStartTime = '';
               ytFormDataObj.scheduleEndTime = '';
@@ -4319,5 +4435,27 @@
         document.body.style.overflow = 'hidden';
       }
       window._tipsPrevModal = null;
+    }
+  </script>
+
+  <script src="/js/schedule-picker.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+          window.schedulePickers = [
+            new SchedulePicker({ mountId: 'pickerCreateYt', startInputId: 'ytScheduleStart', endInputId: 'ytScheduleEnd', toggleId: 'ytEnableSchedule', summaryId: 'ytScheduleSummary' }),
+            new SchedulePicker({ mountId: 'pickerEditYt', startInputId: 'editYtScheduleStart', endInputId: 'editYtScheduleEnd', toggleId: 'editYtEnableSchedule', summaryId: 'editYtScheduleSummary' })
+          ];
+    });
+    function syncSchedulePickers() {
+      (window.schedulePickers || []).forEach(function (p) { p.syncFromInputs(); });
+    }
+    // validation helper: draw attention to the Start Time card when a
+    // schedule-enabled form is submitted without a start time
+    function highlightScheduleStartCard(mountId) {
+      const card = document.querySelector(`#${mountId} [data-card="start"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-red-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-red-500'), 2000);
     }
   </script>

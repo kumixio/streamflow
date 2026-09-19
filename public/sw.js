@@ -1,6 +1,6 @@
 
 const CACHE_NAME = 'streamflow-v2-cache';
-const CACHE_VERSION = '1.0.2';
+const CACHE_VERSION = '1.1.1';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_RESOURCES = [
@@ -8,10 +8,12 @@ const STATIC_RESOURCES = [
   'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/fonts/tabler-icons.woff2',
   'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/fonts/tabler-icons.woff',
   'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/fonts/tabler-icons.ttf',
-  
+
   '/css/styles.css',
+  '/js/csrf.js',
+  '/js/schedule-picker.js',
   '/js/stream-modal.js',
-  
+
   '/images/logo.svg'
 ];
 
@@ -58,9 +60,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = event.request.url;
-  const isFontRequest = url.includes('tabler-icons') || 
-                        url.endsWith('.woff2') || 
-                        url.endsWith('.woff') || 
+  const isFontRequest = url.includes('tabler-icons') ||
+                        url.endsWith('.woff2') ||
+                        url.endsWith('.woff') ||
                         url.endsWith('.ttf');
 
   if (isFontRequest) {
@@ -88,32 +90,26 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isStaticResource(url)) {
+    // Network-first so UI changes show up on a normal refresh; the cache
+    // is only a fallback when the server is unreachable.
     event.respondWith(
-      caches.match(event.request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+      fetch(event.request)
+        .then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
+            return response;
           }
 
-          return fetch(event.request)
-            .then((response) => {
-              if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-                return response;
-              }
+          const responseToCache = response.clone();
 
-              const responseToCache = response.clone();
-
-              caches.open(FULL_CACHE_NAME)
-                .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
-
-              return response;
-            })
-            .catch((error) => {
-              console.error('Service Worker: Fetch failed', error);
-              throw error;
+          caches.open(FULL_CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
             });
+
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
         })
     );
   }

@@ -228,11 +228,15 @@ async function createYouTubeBroadcast(streamId, baseUrl) {
       const projectRoot = path.resolve(__dirname, '..');
       const thumbnailPath = path.join(projectRoot, 'public', stream.youtube_thumbnail);
       if (fs.existsSync(thumbnailPath)) {
+        // thumbnails are stored as original uploads, so the mime type
+        // follows the actual file extension
+        const ext = path.extname(thumbnailPath).toLowerCase();
+        const mimeType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
         const thumbnailStream = fs.createReadStream(thumbnailPath);
         await youtube.thumbnails.set({
           videoId: broadcast.id,
           media: {
-            mimeType: 'image/jpeg',
+            mimeType: mimeType,
             body: thumbnailStream
           }
         });

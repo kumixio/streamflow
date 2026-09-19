@@ -11,6 +11,14 @@ function openNewStreamModal() {
   const modal = document.getElementById('newStreamModal');
   document.body.style.overflow = 'hidden';
   modal.classList.remove('hidden');
+  // a successful create closes the modal without restoring the submit
+  // button, so revive it here or the next open shows a dead "Creating..."
+  const createBtn = modal.querySelector('button[type="submit"]');
+  if (createBtn) {
+    createBtn.disabled = false;
+    createBtn.innerHTML = 'Create Stream';
+    createBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+  }
   const advancedSettingsContent = document.getElementById('advancedSettingsContent');
   const advancedSettingsToggle = document.getElementById('advancedSettingsToggle');
   if (advancedSettingsContent && advancedSettingsToggle) {

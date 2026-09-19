@@ -39,7 +39,9 @@ const generateThumbnail = (videoPath, thumbnailName) => {
   });
 };
 
-const generateImageThumbnail = (imagePath, thumbnailName) => {
+// used by the Rotations feature only — stream thumbnails are stored as
+// untouched originals since YouTube requires >=1280x720 anyway
+const generateRotationThumbnail = (imagePath, thumbnailName) => {
   return new Promise((resolve, reject) => {
     const thumbnailPath = path.join(paths.thumbnails, thumbnailName);
     ffmpeg(imagePath)
@@ -61,5 +63,5 @@ const generateImageThumbnail = (imagePath, thumbnailName) => {
 module.exports = {
   getVideoInfo,
   generateThumbnail,
-  generateImageThumbnail
+  generateRotationThumbnail
 };

@@ -105,6 +105,9 @@ function createTables() {
         FOREIGN KEY (stream_id) REFERENCES streams(id),
         FOREIGN KEY (video_id) REFERENCES videos(id)
       )`);
+      // the streams list checks "has this stream run before?" via
+      // stream_history on every dashboard load — keep that lookup indexed
+      db.run(`CREATE INDEX IF NOT EXISTS idx_stream_history_stream_id ON stream_history(stream_id)`);
 
       db.run(`CREATE TABLE IF NOT EXISTS playlists (
         id TEXT PRIMARY KEY,

@@ -23,6 +23,18 @@ const getUniqueFilename = (originalFilename) => {
   return `${basename}-${timestamp}-${random}${ext}`;
 };
 
+// removes a locally-stored upload referenced by its public URL (e.g. a
+// stream thumbnail). Remote URLs and anything outside /uploads/ are
+// ignored so stale DB values can never delete arbitrary files.
+const deleteLocalUpload = (publicUrl) => {
+  if (!publicUrl || !publicUrl.startsWith('/uploads/') || publicUrl.includes('..')) {
+    return;
+  }
+  fs.remove(path.join(__dirname, '../public', publicUrl)).catch((err) => {
+    console.error(`Error deleting upload file ${publicUrl}:`, err.message);
+  });
+};
+
 const getUniqueFilenameWithNumber = (originalFilename, targetDir) => {
   const ext = path.extname(originalFilename);
   const basename = path.basename(originalFilename, ext);
@@ -41,6 +53,7 @@ module.exports = {
   ensureDirectories,
   getUniqueFilename,
   getUniqueFilenameWithNumber,
+  deleteLocalUpload,
   paths: {
     videos: path.join(__dirname, '../public/uploads/videos'),
     thumbnails: path.join(__dirname, '../public/uploads/thumbnails'),

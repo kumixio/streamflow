@@ -95,9 +95,18 @@ const uploadThumbnail = multer({
   fileFilter: imageFilter
 });
 
+// stream thumbnails are stored and served as original files and forwarded
+// to YouTube, which caps custom thumbnails at 2MB — enforce the same cap
+const uploadStreamThumbnail = multer({
+  storage: thumbnailStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 2 * 1024 * 1024 }
+});
+
 module.exports = {
   uploadVideo,
   uploadAudio,
   upload,
-  uploadThumbnail
+  uploadThumbnail,
+  uploadStreamThumbnail
 };

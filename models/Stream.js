@@ -112,14 +112,17 @@ class Stream {
         params.push(userId);
       }
       
-      if (filter) {
-        if (filter === 'live') {
-          conditions.push("s.status = 'live'");
-        } else if (filter === 'scheduled') {
-          conditions.push("s.status = 'scheduled'");
-        } else if (filter === 'offline') {
-          conditions.push("s.status = 'offline'");
-        }
+      // finished streams (offline with a stream_history entry) are managed
+      // on the History page only — keep them out of the streams list
+      const hasHistory = 'EXISTS (SELECT 1 FROM stream_history sh WHERE sh.stream_id = s.id)';
+      if (filter === 'live') {
+        conditions.push("s.status = 'live'");
+      } else if (filter === 'scheduled') {
+        conditions.push("s.status = 'scheduled'");
+      } else if (filter === 'offline') {
+        conditions.push("s.status = 'offline'", `NOT ${hasHistory}`);
+      } else {
+        conditions.push(`(s.status != 'offline' OR NOT ${hasHistory})`);
       }
       
       if (conditions.length > 0) {
@@ -167,14 +170,17 @@ class Stream {
         conditions.push('s.user_id = ?');
         params.push(userId);
       }
-      if (filter) {
-        if (filter === 'live') {
-          conditions.push("s.status = 'live'");
-        } else if (filter === 'scheduled') {
-          conditions.push("s.status = 'scheduled'");
-        } else if (filter === 'offline') {
-          conditions.push("s.status = 'offline'");
-        }
+      // finished streams (offline with a stream_history entry) are managed
+      // on the History page only — keep them out of the streams list
+      const hasHistory = 'EXISTS (SELECT 1 FROM stream_history sh WHERE sh.stream_id = s.id)';
+      if (filter === 'live') {
+        conditions.push("s.status = 'live'");
+      } else if (filter === 'scheduled') {
+        conditions.push("s.status = 'scheduled'");
+      } else if (filter === 'offline') {
+        conditions.push("s.status = 'offline'", `NOT ${hasHistory}`);
+      } else {
+        conditions.push(`(s.status != 'offline' OR NOT ${hasHistory})`);
       }
       if (search) {
         conditions.push('s.title LIKE ?');

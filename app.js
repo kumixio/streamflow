@@ -22,11 +22,11 @@ const rateLimit = require('express-rate-limit');
 const User = require('./models/User');
 const { db, checkIfUsersExist, initializeDatabase } = require('./db/database');
 const systemMonitor = require('./services/systemMonitor');
-const { uploadVideo, upload, uploadThumbnail, uploadAudio } = require('./middleware/uploadMiddleware');
+const { uploadVideo, upload, uploadThumbnail, uploadAudio, uploadStreamThumbnail } = require('./middleware/uploadMiddleware');
 const chunkUploadService = require('./services/chunkUploadService');
 const audioConverter = require('./services/audioConverter');
-const { ensureDirectories } = require('./utils/storage');
-const { getVideoInfo, generateThumbnail, generateImageThumbnail } = require('./utils/videoProcessor');
+const { ensureDirectories, deleteLocalUpload } = require('./utils/storage');
+const { getVideoInfo, generateThumbnail, generateRotationThumbnail } = require('./utils/videoProcessor');
 const Video = require('./models/Video');
 const MediaFolder = require('./models/MediaFolder');
 const Playlist = require('./models/Playlist');
@@ -130,6 +130,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -192,20 +193,21 @@ app.use('/uploads', function (req, res, next) {
 app.use(express.urlencoded({ extended: true, limit: '50gb' }));
 app.use(express.json({ limit: '50gb' }));
 
+// mounted on /api only: every mutating API call must carry the session
+// CSRF token (X-CSRF-Token header, attached globally by public/js/csrf.js).
+// Browser pages do their mutations through /api; the pre-auth form pages
+// (/login, /signup, /setup-account) post outside this scope.
 const csrfProtection = function (req, res, next) {
-  if ((req.path === '/login' && req.method === 'POST') ||
-    (req.path === '/setup-account' && req.method === 'POST')) {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
     return next();
   }
   const token = req.body._csrf || req.query._csrf || req.headers['x-csrf-token'];
   if (!token || !tokens.verify(req.session.csrfSecret, token)) {
-    return res.status(403).render('error', {
-      title: 'Error',
-      error: 'CSRF validation failed. Please try again.'
-    });
+    return res.status(403).json({ success: false, error: 'CSRF validation failed. Please refresh the page and try again.' });
   }
   next();
 };
+app.use('/api', csrfProtection);
 const isAuthenticated = (req, res, next) => {
   if (req.session.userId) {
     return next();
@@ -1088,6 +1090,16 @@ app.delete('/api/history/:id', isAuthenticated, async (req, res) => {
         }
       );
     });
+    // deleting a run's record also removes the stream it belongs to when
+    // that stream is finished (offline) — its thumbnail file goes with it.
+    // live/scheduled streams are left alone
+    if (history.stream_id) {
+      const stream = await Stream.findById(history.stream_id);
+      if (stream && stream.status === 'offline') {
+        await Stream.delete(stream.id, req.session.userId);
+        deleteLocalUpload(stream.youtube_thumbnail);
+      }
+    }
     res.json({ success: true, message: 'History entry deleted' });
   } catch (error) {
     console.error('Error deleting history entry:', error);
@@ -3431,7 +3443,21 @@ app.post('/api/streams', isAuthenticated, [
   }
 });
 
-app.post('/api/streams/youtube', isAuthenticated, uploadThumbnail.single('thumbnail'), async (req, res) => {
+// stream thumbnail upload with a 2MB cap; multer errors (e.g. the size
+// limit) must come back as JSON, not express's default HTML error page
+const streamThumbnailUpload = (req, res, next) => {
+  uploadStreamThumbnail.single('thumbnail')(req, res, (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Thumbnail is too large. Maximum size is 2MB.'
+        : err.message;
+      return res.status(400).json({ success: false, error: message });
+    }
+    next();
+  });
+};
+
+app.post('/api/streams/youtube', isAuthenticated, streamThumbnailUpload, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
     const YoutubeChannel = require('./models/YoutubeChannel');
@@ -3475,14 +3501,10 @@ app.post('/api/streams/youtube', isAuthenticated, uploadThumbnail.single('thumbn
     
     let localThumbnailPath = null;
     if (req.file) {
-      try {
-        const originalFilename = req.file.filename;
-        const thumbFilename = `thumb-${path.parse(originalFilename).name}.jpg`;
-        await generateImageThumbnail(req.file.path, thumbFilename);
-        localThumbnailPath = `/uploads/thumbnails/${thumbFilename}`;
-      } catch (thumbError) {
-        console.log('Note: Could not process thumbnail:', thumbError.message);
-      }
+      // multer already stored the upload in /uploads/thumbnails — serve the
+      // original file untouched so the full resolution survives (YouTube
+      // custom thumbnails require >=1280x720, a 320x180 copy is useless)
+      localThumbnailPath = `/uploads/thumbnails/${req.file.filename}`;
     }
     
     const streamData = {
@@ -3511,23 +3533,26 @@ app.post('/api/streams/youtube', isAuthenticated, uploadThumbnail.single('thumbn
       youtube_monetization: ytMonetization === 'true' || ytMonetization === true
     };
     
-    if (scheduleStartTime) {
-      const [datePart, timePart] = scheduleStartTime.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      const scheduleDate = new Date(year, month - 1, day, hours, minutes);
-      streamData.schedule_time = scheduleDate.toISOString();
+    // accepts full ISO strings (sent by the YouTube picker, timezone-safe)
+    // as well as bare datetime-local values (interpreted in this server's
+    // timezone, matching the legacy manual forms)
+    function parseScheduleDateTime(value) {
+      if (!value) return null;
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    const scheduleStartDate = parseScheduleDateTime(scheduleStartTime);
+    if (scheduleStartDate) {
+      streamData.schedule_time = scheduleStartDate.toISOString();
       streamData.status = 'scheduled';
     } else {
       streamData.status = 'offline';
     }
     
-    if (scheduleEndTime) {
-      const [datePart, timePart] = scheduleEndTime.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      const endDate = new Date(year, month - 1, day, hours, minutes);
-      streamData.end_time = endDate.toISOString();
+    const scheduleEndDate = parseScheduleDateTime(scheduleEndTime);
+    if (scheduleEndDate) {
+      streamData.end_time = scheduleEndDate.toISOString();
     }
     
     const stream = await Stream.create(streamData);
@@ -3597,7 +3622,7 @@ app.get('/api/streams/:id', isAuthenticated, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch stream' });
   }
 });
-app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail'), async (req, res) => {
+app.put('/api/streams/:id', isAuthenticated, streamThumbnailUpload, async (req, res) => {
   try {
     const stream = await Stream.findById(req.params.id);
     if (!stream) {
@@ -3608,11 +3633,12 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     }
     const updateData = {};
     
+    // accepts full ISO strings (sent by the YouTube picker, timezone-safe)
+    // as well as bare datetime-local values (interpreted in this server's
+    // timezone, matching the legacy manual forms)
     function parseScheduleDateTime(dateTimeString) {
-      const [datePart, timePart] = dateTimeString.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      return new Date(year, month - 1, day, hours, minutes);
+      const d = new Date(dateTimeString);
+      return isNaN(d.getTime()) ? null : d;
     }
     
     if (req.body.streamMode === 'youtube') {
@@ -3631,34 +3657,39 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
       
       if (req.body.scheduleStartTime) {
         const scheduleStartDate = parseScheduleDateTime(req.body.scheduleStartTime);
-        updateData.schedule_time = scheduleStartDate.toISOString();
-        updateData.status = 'scheduled';
+        if (scheduleStartDate) {
+          updateData.schedule_time = scheduleStartDate.toISOString();
+          updateData.status = 'scheduled';
+        }
         
         if (req.body.scheduleEndTime) {
           const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
-          updateData.end_time = scheduleEndDate.toISOString();
+          if (scheduleEndDate) {
+            updateData.end_time = scheduleEndDate.toISOString();
+          }
         } else if ('scheduleEndTime' in req.body && !req.body.scheduleEndTime) {
           updateData.end_time = null;
         }
       } else if ('scheduleStartTime' in req.body && !req.body.scheduleStartTime) {
         updateData.schedule_time = null;
+        // keep the stream out of zombie "scheduled without a schedule" state,
+        // mirroring what the cancel-schedule endpoint does
+        if (stream.status === 'scheduled') {
+          updateData.status = 'offline';
+        }
         if ('scheduleEndTime' in req.body && !req.body.scheduleEndTime) {
           updateData.end_time = null;
         } else if (req.body.scheduleEndTime) {
           const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
-          updateData.end_time = scheduleEndDate.toISOString();
+          if (scheduleEndDate) {
+            updateData.end_time = scheduleEndDate.toISOString();
+          }
         }
       }
       
       if (req.file) {
-        try {
-          const originalFilename = req.file.filename;
-          const thumbFilename = `thumb-${path.parse(originalFilename).name}.jpg`;
-          await generateImageThumbnail(req.file.path, thumbFilename);
-          updateData.youtube_thumbnail = `/uploads/thumbnails/${thumbFilename}`;
-        } catch (thumbError) {
-          console.log('Note: Could not process thumbnail:', thumbError.message);
-        }
+        // serve the original upload at full resolution (see create route)
+        updateData.youtube_thumbnail = `/uploads/thumbnails/${req.file.filename}`;
       }
       
       if (stream.youtube_broadcast_id) {
@@ -3759,11 +3790,13 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
                 try {
                   const thumbnailPath = path.join(__dirname, 'public', updateData.youtube_thumbnail);
                   if (fs.existsSync(thumbnailPath)) {
+                    const ext = path.extname(thumbnailPath).toLowerCase();
+                    const mimeType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
                     const thumbnailStream = fs.createReadStream(thumbnailPath);
                     await youtube.thumbnails.set({
                       videoId: stream.youtube_broadcast_id,
                       media: {
-                        mimeType: 'image/jpeg',
+                        mimeType: mimeType,
                         body: thumbnailStream
                       }
                     });
@@ -3881,6 +3914,11 @@ app.put('/api/streams/:id', isAuthenticated, uploadThumbnail.single('thumbnail')
     }
     
     const updatedStream = await Stream.update(req.params.id, updateData);
+    // a replaced thumbnail file is no longer referenced anywhere — remove it
+    if (updateData.youtube_thumbnail && stream.youtube_thumbnail &&
+        stream.youtube_thumbnail !== updateData.youtube_thumbnail) {
+      deleteLocalUpload(stream.youtube_thumbnail);
+    }
     res.json({ success: true, stream: updatedStream });
   } catch (error) {
     console.error('Error updating stream:', error);
@@ -3896,7 +3934,24 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
     if (stream.user_id !== req.session.userId) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this stream' });
     }
-    await Stream.delete(req.params.id, req.session.userId);
+    const result = await Stream.delete(req.params.id, req.session.userId);
+    if (result.deleted) {
+      // everything below belongs to this stream alone: its thumbnail file
+      // (remote YouTube URLs are ignored by the helper) and its history
+      deleteLocalUpload(stream.youtube_thumbnail);
+      try {
+        await new Promise((resolve, reject) => {
+          db.run('DELETE FROM stream_history WHERE stream_id = ?', [req.params.id], (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      } catch (histErr) {
+        // the stream row is already gone — don't fail the request over
+        // leftover history rows
+        console.error('Error deleting stream history:', histErr.message);
+      }
+    }
     res.json({ success: true, message: 'Stream deleted successfully' });
   } catch (error) {
     console.error('Error deleting stream:', error);
@@ -4285,19 +4340,6 @@ app.put('/api/playlists/:id/videos/reorder', isAuthenticated, [
   }
 });
 
-app.get('/api/donators', async (req, res) => {
-  try {
-    const axios = require('axios');
-    const response = await axios.get('https://donate.youtube101.id/api/donators', {
-      params: { limit: 20 }
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching donators:', error.message);
-    res.json([]);
-  }
-});
-
 app.get('/api/server-time', (req, res) => {
   const now = new Date();
   const day = String(now.getDate()).padStart(2, '0');
@@ -4423,7 +4465,7 @@ app.post('/api/rotations', isAuthenticated, uploadThumbnail.any(), async (req, r
         originalThumbnailPath = originalFilename;
         
         try {
-          await generateImageThumbnail(thumbnailFile.path, thumbFilename);
+          await generateRotationThumbnail(thumbnailFile.path, thumbFilename);
           thumbnailPath = thumbFilename;
         } catch (thumbErr) {
           console.error('Error generating rotation thumbnail:', thumbErr);
@@ -4499,7 +4541,7 @@ app.put('/api/rotations/:id', isAuthenticated, uploadThumbnail.any(), async (req
         originalThumbnailPath = originalFilename;
         
         try {
-          await generateImageThumbnail(thumbnailFile.path, thumbFilename);
+          await generateRotationThumbnail(thumbnailFile.path, thumbFilename);
           thumbnailPath = thumbFilename;
         } catch (thumbErr) {
           console.error('Error generating rotation thumbnail:', thumbErr);
