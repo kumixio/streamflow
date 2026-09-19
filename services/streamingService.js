@@ -181,16 +181,19 @@ function startLogTailer(streamId, startOffset = 0) {
       state.offset = size;
 
       state.pending += buffer.toString('utf8');
-      const lastNewline = state.pending.lastIndexOf('\n');
-      if (lastNewline === -1) {
+      // ffmpeg progress lines are carriage-return separated (they rewrite one
+      // terminal line), so both \r and \n must count as line endings —
+      // waiting for \n alone starves startup detection on healthy streams
+      const lastSep = Math.max(state.pending.lastIndexOf('\n'), state.pending.lastIndexOf('\r'));
+      if (lastSep === -1) {
         return;
       }
-      const complete = state.pending.slice(0, lastNewline);
-      state.pending = state.pending.slice(lastNewline + 1);
+      const complete = state.pending.slice(0, lastSep);
+      state.pending = state.pending.slice(lastSep + 1);
 
       const streamData = activeStreams.get(streamId);
       const startupState = streamData ? streamData.startupState : null;
-      for (const rawLine of complete.split(/\r?\n|\r/g)) {
+      for (const rawLine of complete.split(/\r\n|\r|\n/g)) {
         processFfmpegLogLine(streamId, rawLine.trim(), startupState);
       }
     } catch (e) {

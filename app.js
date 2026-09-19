@@ -4082,6 +4082,12 @@ app.post('/api/streams/:id/status', isAuthenticated, [
           stream
         });
       }
+      // a manual start drops any leftover schedule from a cancelled/parked
+      // run — otherwise a stale end_time would stop the stream seconds after
+      // it starts (the times stay available for the edit form until then)
+      if (stream.status === 'offline' && (stream.schedule_time || stream.end_time)) {
+        await Stream.update(streamId, { schedule_time: null, end_time: null });
+      }
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const host = req.headers['x-forwarded-host'] || req.get('host');
       const baseUrl = `${protocol}://${host}`;
