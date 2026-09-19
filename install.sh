@@ -87,7 +87,7 @@ else
 fi
 
 # ─────────────────────────────────────────
-# 8. Clone repository
+# 8. Clone repository (fork kumixio, bukan upstream bangtutorial)
 # ─────────────────────────────────────────
 echo "📥 Clone repository..."
 if [ -d "$HOME/streamflow" ]; then
@@ -95,7 +95,7 @@ if [ -d "$HOME/streamflow" ]; then
     cd "$HOME/streamflow"
     git pull
 else
-    git clone https://github.com/bangtutorial/streamflow "$HOME/streamflow"
+    git clone https://github.com/kumixio/streamflow.git "$HOME/streamflow"
     cd "$HOME/streamflow"
 fi
 

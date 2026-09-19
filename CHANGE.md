@@ -2,12 +2,13 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 23 file — 19 diedit, 4 file baru (+1405 / −1126 baris).**
+**Total: 24 file — 20 diedit, 4 file baru (+1421 / −1133 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
-| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators, route hapus semua history |
+| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule, `sameSite`, hapus route donators, route hapus semua history, limit login 5→10 percobaan/15 menit, session 24 jam → 7 hari |
 | `db/database.js` | diedit | Tambah index `idx_stream_history_stream_id` |
+| `install.sh` | diedit | URL clone diarahkan ke fork ini (`kumixio/streamflow`), bukan upstream |
 | `middleware/uploadMiddleware.js` | diedit | Tambah `uploadStreamThumbnail` (limit 2MB) + `defParamCharset: 'utf8'` di semua instance multer |
 | `models/Stream.js` | diedit | Stream yang sudah selesai di-hide dari list dashboard |
 | `package.json` | diedit | multer 1.x → 2.4.0, blok `allowScripts` npm |
