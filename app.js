@@ -637,6 +637,18 @@ app.post('/setup-account', upload.single('avatar'), [
 app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
+
+// public pages, linked from the Google OAuth consent screen (Home page /
+// Privacy Policy / Terms of Service URLs) — no login required
+app.get('/home', (req, res) => {
+  res.render('public/home', { title: 'Home' });
+});
+app.get('/privacy', (req, res) => {
+  res.render('public/privacy', { title: 'Privacy Policy' });
+});
+app.get('/terms', (req, res) => {
+  res.render('public/terms', { title: 'Terms of Service' });
+});
 app.get('/welcome', isAuthenticated, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
@@ -3450,39 +3462,43 @@ app.post('/api/streams', isAuthenticated, [
       use_advanced_settings: req.body.useAdvancedSettings === 'true' || req.body.useAdvancedSettings === true,
       user_id: req.session.userId
     };
-    const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
-    function parseLocalDateTime(dateTimeString) {
-      const [datePart, timePart] = dateTimeString.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      
-      return new Date(year, month - 1, day, hours, minutes);
+    // absolute ISO strings (sent by the schedule pickers, timezone-safe) parse
+    // to the exact instant; legacy bare datetime-local values still fall back
+    // to this server's timezone, matching old clients
+    function parseScheduleDateTime(dateTimeString) {
+      const d = new Date(dateTimeString);
+      return isNaN(d.getTime()) ? null : d;
     }
-    
+
     if (req.body.scheduleStartTime) {
-      const scheduleStartDate = parseLocalDateTime(req.body.scheduleStartTime);
-      streamData.schedule_time = scheduleStartDate.toISOString();
-      streamData.status = 'scheduled';
-      
-      if (req.body.scheduleEndTime) {
-        const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
-        
-        if (scheduleEndDate <= scheduleStartDate) {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'End time must be after start time' 
-          });
+      const scheduleStartDate = parseScheduleDateTime(req.body.scheduleStartTime);
+      if (scheduleStartDate) {
+        streamData.schedule_time = scheduleStartDate.toISOString();
+        streamData.status = 'scheduled';
+
+        if (req.body.scheduleEndTime) {
+          const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
+
+          if (scheduleEndDate && scheduleEndDate <= scheduleStartDate) {
+            return res.status(400).json({
+              success: false,
+              error: 'End time must be after start time'
+            });
+          }
+
+          if (scheduleEndDate) {
+            streamData.end_time = scheduleEndDate.toISOString();
+            const durationMs = scheduleEndDate - scheduleStartDate;
+            const durationMinutes = Math.round(durationMs / (1000 * 60));
+            streamData.duration = durationMinutes > 0 ? durationMinutes : null;
+          }
         }
-        
-        streamData.end_time = scheduleEndDate.toISOString();
-        const durationMs = scheduleEndDate - scheduleStartDate;
-        const durationMinutes = Math.round(durationMs / (1000 * 60));
-        streamData.duration = durationMinutes > 0 ? durationMinutes : null;
       }
     } else if (req.body.scheduleEndTime) {
-      const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
-      streamData.end_time = scheduleEndDate.toISOString();
+      const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
+      if (scheduleEndDate) {
+        streamData.end_time = scheduleEndDate.toISOString();
+      }
     }
     
     if (!streamData.status) {
@@ -3528,6 +3544,9 @@ app.post('/api/streams/youtube', isAuthenticated, streamThumbnailUpload, async (
       selectedChannel = await YoutubeChannel.findById(ytChannelId);
       if (!selectedChannel || selectedChannel.user_id !== req.session.userId) {
         return res.status(400).json({ success: false, error: 'Invalid channel selected' });
+      }
+      if (!selectedChannel.is_connected) {
+        return res.status(400).json({ success: false, error: 'Channel is disconnected — reconnect it in Settings first' });
       }
     } else {
       selectedChannel = await YoutubeChannel.findDefault(req.session.userId);
@@ -3718,6 +3737,9 @@ app.put('/api/streams/:id', isAuthenticated, streamThumbnailUpload, async (req, 
         if (targetChannel.id !== stream.youtube_channel_id) {
           if (stream.status === 'live') {
             return res.status(400).json({ success: false, error: 'Cannot change channel while the stream is live' });
+          }
+          if (!targetChannel.is_connected) {
+            return res.status(400).json({ success: false, error: 'Channel is disconnected — reconnect it in Settings first' });
           }
           if (stream.youtube_broadcast_id) {
             // the old broadcast lives on the old channel — remove it so the
@@ -3940,53 +3962,56 @@ app.put('/api/streams/:id', isAuthenticated, streamThumbnailUpload, async (req, 
     if (req.body.useAdvancedSettings !== undefined) {
       updateData.use_advanced_settings = req.body.useAdvancedSettings === 'true' || req.body.useAdvancedSettings === true;
     }
-    const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
-    function parseLocalDateTime(dateTimeString) {
-      const [datePart, timePart] = dateTimeString.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      
-      return new Date(year, month - 1, day, hours, minutes);
-    }
-    
     if (req.body.scheduleStartTime) {
-      const scheduleStartDate = parseLocalDateTime(req.body.scheduleStartTime);
-      updateData.schedule_time = scheduleStartDate.toISOString();
-      updateData.status = 'scheduled';
-      
-      if (req.body.scheduleEndTime) {
-        const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
-        
-        if (scheduleEndDate <= scheduleStartDate) {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'End time must be after start time' 
-          });
+      const scheduleStartDate = parseScheduleDateTime(req.body.scheduleStartTime);
+      if (scheduleStartDate) {
+        updateData.schedule_time = scheduleStartDate.toISOString();
+        updateData.status = 'scheduled';
+
+        if (req.body.scheduleEndTime) {
+          const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
+
+          if (scheduleEndDate && scheduleEndDate <= scheduleStartDate) {
+            return res.status(400).json({
+              success: false,
+              error: 'End time must be after start time'
+            });
+          }
+
+          if (scheduleEndDate) {
+            updateData.end_time = scheduleEndDate.toISOString();
+            const durationMs = scheduleEndDate - scheduleStartDate;
+            const durationMinutes = Math.round(durationMs / (1000 * 60));
+            updateData.duration = durationMinutes > 0 ? durationMinutes : null;
+          }
+        } else if ('scheduleEndTime' in req.body && req.body.scheduleEndTime === '') {
+          updateData.end_time = null;
+          updateData.duration = null;
         }
-        
-        updateData.end_time = scheduleEndDate.toISOString();
-        const durationMs = scheduleEndDate - scheduleStartDate;
-        const durationMinutes = Math.round(durationMs / (1000 * 60));
-        updateData.duration = durationMinutes > 0 ? durationMinutes : null;
-      } else if ('scheduleEndTime' in req.body && req.body.scheduleEndTime === '') {
-        updateData.end_time = null;
-        updateData.duration = null;
       }
     } else if ('scheduleStartTime' in req.body && !req.body.scheduleStartTime) {
       updateData.schedule_time = null;
-      updateData.status = 'offline';
-      
+      // only a scheduled stream flips to offline when its schedule is
+      // cleared — never touch a live stream's status here (mirrors the
+      // YouTube branch); the API allows edits the UI hides
+      if (stream.status === 'scheduled') {
+        updateData.status = 'offline';
+      }
+
       if (req.body.scheduleEndTime) {
-        const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
-        updateData.end_time = scheduleEndDate.toISOString();
+        const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
+        if (scheduleEndDate) {
+          updateData.end_time = scheduleEndDate.toISOString();
+        }
       } else if ('scheduleEndTime' in req.body && req.body.scheduleEndTime === '') {
         updateData.end_time = null;
         updateData.duration = null;
       }
     } else if (req.body.scheduleEndTime) {
-      const scheduleEndDate = parseLocalDateTime(req.body.scheduleEndTime);
-      updateData.end_time = scheduleEndDate.toISOString();
+      const scheduleEndDate = parseScheduleDateTime(req.body.scheduleEndTime);
+      if (scheduleEndDate) {
+        updateData.end_time = scheduleEndDate.toISOString();
+      }
     } else if ('scheduleEndTime' in req.body && req.body.scheduleEndTime === '') {
       updateData.end_time = null;
       updateData.duration = null;
@@ -4037,6 +4062,10 @@ app.delete('/api/streams/:id', isAuthenticated, async (req, res) => {
         // leftover history rows
         console.error('Error deleting stream history:', histErr.message);
       }
+      // ffmpeg log file (logs/ffmpeg/stream-<id>.log) + in-memory traces:
+      // console buffer, schedule-failure counters, pending timers
+      streamingService.cleanupStreamFiles(req.params.id);
+      schedulerService.forgetStream(req.params.id);
     }
     res.json({ success: true, message: 'Stream deleted successfully' });
   } catch (error) {

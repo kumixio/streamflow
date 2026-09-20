@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - StreamFlow</title>
+  <link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/tabler-icons.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        fontFamily: { 'sans': ['Inter', 'system-ui', 'sans-serif'] },
+        extend: {
+          colors: {
+            'primary': '#0055FF',
+            'secondary': '#0043CA',
+            'dark': {
+              '900': '#121212', '800': '#252525', '700': '#2D2D2D',
+              '600': '#3D3D3D', '500': '#6E6E6E'
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-dark-900 text-gray-300 font-sans min-h-screen flex flex-col">
+  <header class="border-b border-dark-700">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <img src="/images/logo.svg" alt="StreamFlow" class="w-7 h-7">
+        <span class="text-white font-semibold">StreamFlow</span>
+      </div>
+      <nav class="flex items-center gap-5 text-sm">
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy</a>
+        <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+        <a href="/login" class="px-4 py-1.5 bg-primary hover:bg-secondary text-white rounded-lg transition-colors">Open App</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-4xl mx-auto px-6 py-16 w-full">
+    <div class="text-center mb-14">
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4">Self-hosted 24/7 live streaming</h1>
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto">
+        StreamFlow turns your own server into a streaming studio — broadcast video playlists
+        to YouTube and other RTMP platforms around the clock, on your schedule, from your own disk.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <i class="ti ti-broadcast text-primary text-3xl mb-3 block"></i>
+        <h2 class="text-white font-semibold mb-1.5">Nonstop streaming</h2>
+        <p class="text-sm">Loop videos and playlists continuously. Streams keep running through app restarts and updates.</p>
+      </div>
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <i class="ti ti-calendar-event text-primary text-3xl mb-3 block"></i>
+        <h2 class="text-white font-semibold mb-1.5">Scheduling</h2>
+        <p class="text-sm">Set exact start and end times — streams start and stop themselves, automatically, with retries if something hiccups.</p>
+      </div>
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <i class="ti ti-devices text-primary text-3xl mb-3 block"></i>
+        <h2 class="text-white font-semibold mb-1.5">Multi-platform</h2>
+        <p class="text-sm">YouTube via the official API with broadcast management, or any custom RTMP destination.</p>
+      </div>
+    </div>
+
+    <div class="text-center mt-14">
+      <a href="/login" class="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-secondary text-white rounded-lg font-medium transition-colors">
+        Sign in to start streaming <i class="ti ti-arrow-right"></i>
+      </a>
+      <p class="text-xs text-gray-500 mt-4">This instance is privately operated. Access requires an account from its administrator.</p>
+    </div>
+  </main>
+
+  <footer class="border-t border-dark-700">
+    <div class="max-w-4xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+      <span>&copy; 2026 StreamFlow</span>
+      <div class="flex items-center gap-5">
+        <a href="/privacy" class="hover:text-gray-300 transition-colors">Privacy Policy</a>
+        <a href="/terms" class="hover:text-gray-300 transition-colors">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -132,6 +132,11 @@ async function checkStreamDurations() {
   }
 }
 
+// setTimeout overflows (and fires immediately) above 2^31-1 ms (~24.8 days);
+// anything further out is left to the duration sweep, which picks it up once
+// the end time is within its 60s scheduling window
+const MAX_TERMINATION_DELAY_MS = 2147483647;
+
 function scheduleStreamTermination(streamId, durationMinutes, userId = null) {
   if (!streamingService) {
     return;
@@ -149,6 +154,9 @@ function scheduleStreamTermination(streamId, durationMinutes, userId = null) {
   }
 
   const durationMs = Math.max(0, durationMinutes * 60 * 1000);
+  if (durationMs > MAX_TERMINATION_DELAY_MS) {
+    return;
+  }
   const targetEndTime = Date.now() + durationMs;
 
   const timeoutId = setTimeout(async () => {
@@ -171,6 +179,24 @@ function scheduleStreamTermination(streamId, durationMinutes, userId = null) {
     targetEndTime,
     userId
   });
+}
+
+// precise end-time stop for a just-started stream: the duration sweep only
+// guarantees a stop within its 30s check interval — this schedules the exact
+// moment instead, so a stream with an end time doesn't overshoot it
+function scheduleStreamTerminationByEndTime(streamId, endTime, userId = null) {
+  const target = endTime instanceof Date ? endTime : new Date(endTime);
+  if (isNaN(target.getTime())) {
+    return;
+  }
+
+  const timeUntilEnd = target.getTime() - Date.now();
+  if (timeUntilEnd <= 0) {
+    // past-due end times are handled (and stopped) by the duration sweep
+    return;
+  }
+
+  scheduleStreamTermination(streamId, timeUntilEnd / 60000, userId);
 }
 
 function cancelStreamTermination(streamId) {
@@ -200,6 +226,12 @@ function handleStreamStopped(streamId) {
   return cancelStreamTermination(streamId);
 }
 
+// drop every in-memory trace of a deleted stream
+function forgetStream(streamId) {
+  scheduleStartFailures.delete(streamId);
+  cancelStreamTermination(streamId);
+}
+
 function shutdown() {
   if (scheduleIntervalId) {
     clearInterval(scheduleIntervalId);
@@ -219,10 +251,12 @@ function shutdown() {
 module.exports = {
   init,
   scheduleStreamTermination,
+  scheduleStreamTerminationByEndTime,
   cancelStreamTermination,
   getScheduledTermination,
   handleStreamStopped,
   checkScheduledStreams,
   checkStreamDurations,
+  forgetStream,
   shutdown
 };

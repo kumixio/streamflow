@@ -76,8 +76,8 @@
                     <span class="text-sm"><%= entry.platform || 'Custom' %></span>
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400"><%= helpers.formatDateTime(entry.start_time) %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400"><%= helpers.formatDateTime(entry.end_time) %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400"><time data-utc="<%= entry.start_time %>"><%= helpers.formatDateTime(entry.start_time) %></time></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400"><time data-utc="<%= entry.end_time %>"><%= helpers.formatDateTime(entry.end_time) %></time></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm"><%= helpers.formatDuration(entry.duration) %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right">
                   <button onclick="deleteHistoryEntry('<%= entry.id %>')" class="p-1.5 text-gray-400 hover:text-red-400 transition-colors">
@@ -278,6 +278,19 @@
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
+
+    // the server renders times in its own timezone; re-render them in the
+    // visitor's so the table matches the dashboard (identical when both
+    // share a timezone)
+    document.querySelectorAll('time[data-utc]').forEach(el => {
+      const d = new Date(el.getAttribute('data-utc'));
+      if (!isNaN(d.getTime())) {
+        el.textContent = d.toLocaleString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        });
+      }
+    });
   </script>
 
   <style>

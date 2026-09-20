@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - StreamFlow</title>
+  <link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/tabler-icons.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        fontFamily: { 'sans': ['Inter', 'system-ui', 'sans-serif'] },
+        extend: {
+          colors: {
+            'primary': '#0055FF',
+            'secondary': '#0043CA',
+            'dark': {
+              '900': '#121212', '800': '#252525', '700': '#2D2D2D',
+              '600': '#3D3D3D', '500': '#6E6E6E'
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-dark-900 text-gray-300 font-sans min-h-screen flex flex-col">
+  <header class="border-b border-dark-700">
+    <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="/home" class="flex items-center gap-2">
+        <img src="/images/logo.svg" alt="StreamFlow" class="w-7 h-7">
+        <span class="text-white font-semibold">StreamFlow</span>
+      </a>
+      <nav class="flex items-center gap-5 text-sm">
+        <a href="/home" class="hover:text-white transition-colors">Home</a>
+        <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto px-6 py-12 w-full">
+    <h1 class="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
+    <p class="text-sm text-gray-500 mb-10">Last updated: 20 September 2026</p>
+
+    <div class="space-y-8 text-sm leading-relaxed">
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">1. Overview</h2>
+        <p>
+          StreamFlow is a self-hosted streaming application. All data described below is stored on
+          the server operated by the administrator of this instance — the software itself sends your
+          data nowhere except the third-party services explicitly described in this policy.
+          Questions about this instance (including data deletion requests) should be directed to its
+          administrator.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">2. Information the app handles</h2>
+        <ul class="list-disc pl-5 space-y-1.5">
+          <li><strong class="text-gray-200">Account data</strong> — username, password (stored only as a cryptographic hash), and optional profile avatar.</li>
+          <li><strong class="text-gray-200">Uploaded media</strong> — videos, audio files, and thumbnails you upload, stored on the server's disk.</li>
+          <li><strong class="text-gray-200">Stream configuration</strong> — stream titles, schedules, and RTMP stream keys for the platforms you stream to.</li>
+          <li><strong class="text-gray-200">YouTube connection</strong> — if you connect a YouTube channel, OAuth access and refresh tokens are stored encrypted at rest and used only to manage broadcasts on your behalf.</li>
+          <li><strong class="text-gray-200">Session cookies</strong> — a single login-session cookie keeping you signed in. No tracking or advertising cookies are used.</li>
+          <li><strong class="text-gray-200">Technical logs</strong> — application logs and per-stream FFmpeg logs kept on the server for troubleshooting.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">3. Third-party services</h2>
+        <ul class="list-disc pl-5 space-y-1.5">
+          <li><strong class="text-gray-200">Google / YouTube APIs</strong> — with your explicit consent, the app uses your YouTube credentials to create and manage live broadcasts on the channels you connect. You can revoke this at any time from the app's settings or your Google account's third-party access page.</li>
+          <li><strong class="text-gray-200">Streaming destinations</strong> — when a stream starts, its video is delivered to the RTMP destination you configured (e.g. YouTube ingestion servers).</li>
+        </ul>
+        <p class="mt-2">These third parties process your data under their own privacy policies.</p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">4. Data retention and deletion</h2>
+        <p>
+          Media, streams, history, and connected channels can be deleted at any time from within the
+          app. Disconnecting a channel removes its stored tokens. The administrator of this instance
+          can additionally purge any residual data from the server.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">5. What this app does not do</h2>
+        <p>
+          No analytics, no advertising, no profiling, and no selling or sharing of your data with
+          anyone beyond the third-party services described above.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">6. Changes to this policy</h2>
+        <p>
+          If this policy is updated, the new version will be published on this page with a revised
+          "Last updated" date.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="border-t border-dark-700">
+    <div class="max-w-3xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+      <span>&copy; 2026 StreamFlow</span>
+      <div class="flex items-center gap-5">
+        <a href="/home" class="hover:text-gray-300 transition-colors">Home</a>
+        <a href="/terms" class="hover:text-gray-300 transition-colors">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

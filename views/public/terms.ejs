@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service - StreamFlow</title>
+  <link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.30.0/tabler-icons.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        fontFamily: { 'sans': ['Inter', 'system-ui', 'sans-serif'] },
+        extend: {
+          colors: {
+            'primary': '#0055FF',
+            'secondary': '#0043CA',
+            'dark': {
+              '900': '#121212', '800': '#252525', '700': '#2D2D2D',
+              '600': '#3D3D3D', '500': '#6E6E6E'
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-dark-900 text-gray-300 font-sans min-h-screen flex flex-col">
+  <header class="border-b border-dark-700">
+    <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="/home" class="flex items-center gap-2">
+        <img src="/images/logo.svg" alt="StreamFlow" class="w-7 h-7">
+        <span class="text-white font-semibold">StreamFlow</span>
+      </a>
+      <nav class="flex items-center gap-5 text-sm">
+        <a href="/home" class="hover:text-white transition-colors">Home</a>
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto px-6 py-12 w-full">
+    <h1 class="text-3xl font-bold text-white mb-2">Terms of Service</h1>
+    <p class="text-sm text-gray-500 mb-10">Last updated: 20 September 2026</p>
+
+    <div class="space-y-8 text-sm leading-relaxed">
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">1. Acceptance</h2>
+        <p>
+          By accessing or using this StreamFlow instance, you agree to these terms. If you do not
+          agree, do not use the service. This instance is privately operated; access is granted by
+          its administrator and may be revoked at any time.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">2. The service</h2>
+        <p>
+          StreamFlow is self-hosted software that broadcasts video from this server to live
+          streaming platforms (such as YouTube) on your behalf. The service is provided
+          <strong class="text-gray-200">"as is"</strong> and <strong class="text-gray-200">"as available"</strong>,
+          without warranties of any kind, express or implied, including uninterrupted or error-free
+          streaming, or compatibility with any third-party platform.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">3. Your responsibilities</h2>
+        <ul class="list-disc pl-5 space-y-1.5">
+          <li>You are solely responsible for the content you upload and stream, including owning or holding the necessary rights to it.</li>
+          <li>Your use of third-party platforms (YouTube and other RTMP destinations) remains subject to those platforms' own terms of service, community guidelines, and copyright policies.</li>
+          <li>You are responsible for keeping your account credentials secure and for all activity under your account.</li>
+          <li>Use the service in compliance with all laws applicable to you and to the operator of this server.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">4. Acceptable use</h2>
+        <p>
+          You may not use the service to stream unlawful content, infringe intellectual property
+          rights, harass or harm others, or to abuse, overload, or circumvent the protections of any
+          third-party platform or API (including automated access outside what the service provides).
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">5. Limitation of liability</h2>
+        <p>
+          To the maximum extent permitted by law, neither the operator of this instance nor the
+          software's contributors shall be liable for any indirect, incidental, special, or
+          consequential damages — including lost profits, lost views, terminated platform accounts,
+          or lost data — arising from or related to your use of the service.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">6. Changes</h2>
+        <p>
+          These terms may be updated at any time. Continued use of the service after changes are
+          published on this page constitutes acceptance of the revised terms.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-white font-semibold text-base mb-2">7. Contact</h2>
+        <p>
+          Questions about these terms or this instance should be directed to the administrator
+          operating this server.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="border-t border-dark-700">
+    <div class="max-w-3xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+      <span>&copy; 2026 StreamFlow</span>
+      <div class="flex items-center gap-5">
+        <a href="/home" class="hover:text-gray-300 transition-colors">Home</a>
+        <a href="/privacy" class="hover:text-gray-300 transition-colors">Privacy Policy</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -599,8 +599,9 @@
                       <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 1) { %>
                       <div id="channelSelectorDropdown" class="hidden mt-3 pt-3 border-t border-gray-700 space-y-2">
                         <% youtubeChannels.forEach(function(channel) { %>
-                        <button type="button" onclick="selectYtChannel('<%= channel.id %>', '<%= channel.channel_name %>', '<%= channel.channel_thumbnail %>', '<%= channel.subscriber_count %>')"
-                          class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors text-left channel-option <%= channel.is_default ? 'bg-gray-700/50 selected-channel' : '' %>" data-channel-id="<%= channel.id %>">
+                        <button type="button" <%= channel.is_connected ? '' : 'disabled title="Reconnect this channel in Settings first"' %>
+                          onclick="<%= channel.is_connected ? `selectYtChannel('${channel.id}', '${channel.channel_name}', '${channel.channel_thumbnail}', '${channel.subscriber_count}')` : '' %>"
+                          class="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left channel-option <%= channel.is_connected ? 'hover:bg-gray-700' : 'opacity-50 cursor-not-allowed' %> <%= channel.is_default ? 'bg-gray-700/50 selected-channel' : '' %>" data-channel-id="<%= channel.id %>">
                           <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
                             <img src="<%= channel.channel_thumbnail %>" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'">
                           </div>
@@ -1086,8 +1087,8 @@
                       <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0) { %>
                       <div id="editChannelSelectorDropdown" class="hidden mt-3 pt-3 border-t border-gray-700 space-y-2">
                         <% youtubeChannels.forEach(function(channel) { %>
-                        <button type="button" onclick="selectEditYtChannel(this)"
-                          class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700 transition-colors text-left edit-channel-option"
+                        <button type="button" onclick="selectEditYtChannel(this)" <%= channel.is_connected ? '' : 'disabled title="Reconnect this channel in Settings first"' %>
+                          class="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left edit-channel-option <%= channel.is_connected ? 'hover:bg-gray-700' : 'opacity-50 cursor-not-allowed' %>"
                           data-channel-id="<%= channel.id %>"
                           data-channel-name="<%= channel.channel_name %>"
                           data-channel-thumb="<%= channel.channel_thumbnail %>"
@@ -1724,11 +1725,14 @@
           return;
         }
       }
+      // datetime-local values are this browser's wall time — convert to an
+      // absolute ISO instant so the server stores the exact moment no matter
+      // which timezone it (or the browser) is in
       if (scheduleStartTime) {
-        formData.scheduleStartTime = scheduleStartTime;
+        formData.scheduleStartTime = new Date(scheduleStartTime).toISOString();
       }
       if (scheduleEndTime) {
-        formData.scheduleEndTime = scheduleEndTime;
+        formData.scheduleEndTime = new Date(scheduleEndTime).toISOString();
       }
       fetch('/api/streams', {
         method: 'POST',
@@ -1778,15 +1782,13 @@
 
     function formatDate(date) {
       if (!date) return '';
-      const serverDate = convertFromServerTime(date.toISOString());
-      return serverDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     function formatTime(date) {
       if (!date) return '';
-      const serverDate = convertFromServerTime(date.toISOString());
-      const hours = String(serverDate.getHours()).padStart(2, '0');
-      const minutes = String(serverDate.getMinutes()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
       return `${hours}:${minutes}`;
     }
 
@@ -2299,14 +2301,6 @@
       } else {
         fetchStreams(1, 10, '');
       }
-      fetchServerTimeSync().then(() => {
-        if (initialDataUsed) {
-          displayStreams(initialStreamsData);
-          if (initialPaginationData) {
-            updatePagination(initialPaginationData);
-          }
-        }
-      });
       startCountdowns();
       startLiveTimers();
     });
@@ -3470,13 +3464,14 @@
       updateDurationBadge(true);
     }
     
+    // schedule times travel as absolute ISO instants now, so prefill shows
+    // them in the viewer's own wall time (same as the YouTube picker path)
     function formatDateTimeLocal(date) {
-      const serverDate = convertFromServerTime(date.toISOString());
-      const year = serverDate.getFullYear();
-      const month = String(serverDate.getMonth() + 1).padStart(2, '0');
-      const day = String(serverDate.getDate()).padStart(2, '0');
-      const hours = String(serverDate.getHours()).padStart(2, '0');
-      const minutes = String(serverDate.getMinutes()).padStart(2, '0');
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
     // YouTube picker path only: format as the browser's own wall time.
@@ -3918,8 +3913,10 @@
               return;
             }
           }
-          formData.scheduleStartTime = scheduleStartTime || '';
-          formData.scheduleEndTime = scheduleEndTime || '';
+          // convert the browser's wall time to an absolute instant, matching
+          // the create form and the YouTube picker path
+          formData.scheduleStartTime = scheduleStartTime ? new Date(scheduleStartTime).toISOString() : '';
+          formData.scheduleEndTime = scheduleEndTime ? new Date(scheduleEndTime).toISOString() : '';
           fetch(`/api/streams/${streamId}`, {
             method: 'PUT',
             headers: {
@@ -4001,27 +3998,12 @@
         });
       }, 1000);
     }
-    let dashboardServerTimezoneOffset = null;
-    
-    async function fetchServerTimeSync() {
-      try {
-        const response = await fetch('/api/server-time');
-        const data = await response.json();
-        if (data.timezoneOffset !== undefined) {
-          dashboardServerTimezoneOffset = data.timezoneOffset;
-        }
-      } catch (error) {
-        console.error('Error fetching server time:', error);
-      }
-    }
-    
+    // schedule times are absolute instants end to end now; the server clock
+    // below is display-only ("Server time" labels in the stream modals)
     function updateServerTime() {
       fetch('/api/server-time')
         .then(response => response.json())
         .then(data => {
-          if (data.timezoneOffset !== undefined) {
-            dashboardServerTimezoneOffset = data.timezoneOffset;
-          }
           if (data.formattedTime) {
             const timeDisplay = `Server time: ${data.formattedTime}`;
             const createModalDisplay = document.getElementById('serverTimeDisplay');
@@ -4047,22 +4029,6 @@
         });
     }
     
-    function convertToServerTime(date) {
-      if (dashboardServerTimezoneOffset === null) return date;
-      const localOffset = date.getTimezoneOffset();
-      const offsetDiff = localOffset - dashboardServerTimezoneOffset;
-      return new Date(date.getTime() + offsetDiff * 60 * 1000);
-    }
-    
-    function convertFromServerTime(isoString) {
-      if (!isoString) return null;
-      const date = new Date(isoString);
-      if (dashboardServerTimezoneOffset === null) return date;
-      const localOffset = date.getTimezoneOffset();
-      const offsetDiff = localOffset - dashboardServerTimezoneOffset;
-      return new Date(date.getTime() + offsetDiff * 60 * 1000);
-    }
-
     function calculateDuration(startTime, endTime, isEdit = false) {
       const badge = document.getElementById(isEdit ? 'editDurationBadge' : 'durationBadge');
       if (!badge) return;

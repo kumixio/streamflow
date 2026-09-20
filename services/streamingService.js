@@ -1131,9 +1131,7 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
     }
 
     if (schedulerService && originalEndTime) {
-      if (typeof schedulerService.scheduleStreamTerminationByEndTime === 'function') {
-        schedulerService.scheduleStreamTerminationByEndTime(streamId, originalEndTime, stream.user_id);
-      }
+      schedulerService.scheduleStreamTerminationByEndTime(streamId, originalEndTime, stream.user_id);
     }
 
     return {
@@ -1500,6 +1498,28 @@ async function adoptRunningStreams() {
     if (adopted > 0) {
       console.log(`[Streaming] Re-attached to ${adopted} running stream(s) after restart`);
     }
+
+    // a start interrupted by a restart/crash (ffmpeg spawned, pid persisted,
+    // but the status never flipped to 'live') leaves a detached ffmpeg that
+    // nothing manages — the sweep above only looks at 'live' rows, and such
+    // an orphan could never be stopped from the UI. Anything else holding a
+    // live pid gets killed; dead pids just get cleared.
+    const pidRows = await new Promise((resolve) => {
+      db.all('SELECT id, ffmpeg_pid FROM streams WHERE ffmpeg_pid IS NOT NULL', [], (err, rows) => {
+        resolve(err ? [] : (rows || []));
+      });
+    });
+    for (const row of pidRows) {
+      if (activeStreams.has(row.id)) {
+        continue; // adopted just above
+      }
+      if (isFfmpegPidAlive(row.ffmpeg_pid)) {
+        console.log(`[Streaming] Killing orphaned FFmpeg (pid ${row.ffmpeg_pid}) for stream ${row.id}`);
+        addStreamLog(row.id, 'Stopped orphaned FFmpeg process left over from an interrupted start');
+        await killFFmpegProcess(row.id, { pid: row.ffmpeg_pid });
+      }
+      db.run('UPDATE streams SET ffmpeg_pid = NULL WHERE id = ?', [row.id]);
+    }
   } catch (error) {
     console.error('[Streaming] Failed to adopt running streams:', error);
   }
@@ -1565,6 +1585,20 @@ async function saveStreamHistory(stream) {
   }
 }
 
+// everything a deleted stream leaves behind: its ffmpeg log file (up to
+// 100MB each, one per stream id), console buffer, and any lingering pid
+function cleanupStreamFiles(streamId) {
+  stopLogTailer(streamId);
+  streamLogs.delete(streamId);
+  try {
+    const logFile = ffmpegLogPath(streamId);
+    if (fs.existsSync(logFile)) {
+      fs.unlinkSync(logFile);
+    }
+  } catch (e) { }
+  db.run('UPDATE streams SET ffmpeg_pid = NULL WHERE id = ?', [streamId]);
+}
+
 async function gracefulShutdown() {
   if (syncIntervalId) {
     clearInterval(syncIntervalId);
@@ -1626,6 +1660,7 @@ module.exports = {
   getActiveStreamInfo,
   getStreamLogs,
   addStreamLog,
+  cleanupStreamFiles,
   syncStreamStatuses,
   healthCheckStreams,
   saveStreamHistory,

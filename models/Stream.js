@@ -187,13 +187,15 @@ class Stream {
         params.push(`%${search}%`);
       }
       // date range compares against the most meaningful date each stream has:
-      // its schedule first, then its last start, then when it was created
+      // its schedule first, then its last start, then when it was created.
+      // 'localtime' shifts the stored UTC instants to the server's wall-clock
+      // date, so the filter matches the dates the user sees and picks
       if (dateFrom) {
-        conditions.push('date(COALESCE(s.schedule_time, s.start_time, s.created_at)) >= ?');
+        conditions.push("date(COALESCE(s.schedule_time, s.start_time, s.created_at), 'localtime') >= ?");
         params.push(dateFrom);
       }
       if (dateTo) {
-        conditions.push('date(COALESCE(s.schedule_time, s.start_time, s.created_at)) <= ?');
+        conditions.push("date(COALESCE(s.schedule_time, s.start_time, s.created_at), 'localtime') <= ?");
         params.push(dateTo);
       }
       if (conditions.length > 0) {
