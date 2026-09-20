@@ -25,7 +25,7 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `utils/storage.js` | diedit | Tambah helper `deleteLocalUpload` |
 | `utils/videoProcessor.js` | diedit | `generateImageThumbnail` → `generateRotationThumbnail` |
 | `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO absolut di SEMUA form (manual + YouTube) sehingga timezone-safe, dialog shared, label channel disconnected di picker, **picker channel di modal edit** (sebelumnya channel gak bisa diganti saat edit), **opsi channel disconnected di-disable di picker create & edit**, **filter status (live/scheduled/offline) + filter rentang tanggal** di toolbar Streams |
-| `views/public/home.ejs` | **baru** | Landing page publik (tanpa login) — utk isi "Home page URL" di Google OAuth consent screen |
+| `views/public/home.ejs` | **baru** | Landing page publik (tanpa login) — utk isi "Home page URL" di Google OAuth consent screen; branding instance **"Kumix Stream"** (harus sama persis dgn nama app di consent screen, kalau beda Google tolak saat publish) |
 | `views/public/privacy.ejs` | **baru** | Privacy policy publik — utk isi link "Privacy Policy" di consent screen |
 | `views/public/terms.ejs` | **baru** | Terms of service publik — utk isi link "Terms of Service" di consent screen |
 | `views/gallery.ejs` | diedit | Definisi dialog duplikat diganti file shared |
