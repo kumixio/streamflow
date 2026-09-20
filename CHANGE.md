@@ -2,7 +2,7 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 30 file — 23 diedit, 7 file baru (+2716 / −1356 baris, di luar dokumen ini).**
+**Total: 31 file — 23 diedit, 8 file baru (+2716 / −1356 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
@@ -13,6 +13,7 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `models/Stream.js` | diedit | Stream yang sudah selesai di-hide dari list dashboard; `findAllPaginated` dukung filter rentang tanggal (jadwal/start/created, dikonversi ke tanggal lokal server via modifier `'localtime'`) |
 | `models/YoutubeChannel.js` | diedit | Soft-disconnect (`markDisconnected`/`markAllDisconnected`) + `findDefault` memprioritaskan channel yang masih connected |
 | `package.json` | diedit | multer 1.x → 2.4.0, blok `allowScripts` npm |
+| `public/images/kumix-logo.png` | **baru** | Logo Kumix Stream 256px utk halaman publik (di-resize dari master 1254px) + favicon |
 | `public/js/csrf.js` | **baru** | Injector header CSRF global (fetch + XMLHttpRequest) |
 | `public/js/custom-dialog.js` | **baru** | Dialog konfirmasi/prompt in-app shared (pengganti dialog bawaan browser) |
 | `public/js/schedule-picker.js` | **baru** | Komponen schedule picker kustom (kalender + slot waktu) |
