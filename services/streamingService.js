@@ -92,11 +92,72 @@ function cleanupStreamData(streamId) {
   manuallyStoppingStreams.delete(streamId);
   startingStreams.delete(streamId);
   stopLogTailer(streamId);
+  try { fs.unlinkSync(ffmpegPidPath(streamId)); } catch (e) { }
   db.run('UPDATE streams SET ffmpeg_pid = NULL WHERE id = ?', [streamId]);
 }
 
 function ffmpegLogPath(streamId) {
   return path.join(FFMPEG_LOG_DIR, `stream-${streamId}.log`);
+}
+
+function ffmpegPidPath(streamId) {
+  return path.join(FFMPEG_LOG_DIR, `stream-${streamId}.pid`);
+}
+
+// resolves once the launcher has written FFmpeg's real pid, or rejects fast
+// when the launcher dies without ever starting FFmpeg
+function waitForPidFile(pidFile, launcher, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let launcherDied = false;
+
+    const finish = (fn, value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearInterval(poll);
+      clearTimeout(timer);
+      launcher.removeAllListeners('exit');
+      launcher.removeAllListeners('error');
+      fn(value);
+    };
+
+    launcher.on('error', (err) => {
+      launcherDied = true;
+      finish(reject, new Error(`Failed to launch FFmpeg: ${err.message}`));
+    });
+    launcher.on('exit', () => {
+      // the launcher exits right after a successful spawn too — only a
+      // missing pid file at this point means FFmpeg never started
+      launcherDied = true;
+    });
+
+    const poll = setInterval(() => {
+      if (launcherDied && !fs.existsSync(pidFile)) {
+        finish(reject, new Error('FFmpeg launcher exited before FFmpeg started'));
+        return;
+      }
+      try {
+        const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+        if (pid > 0) {
+          finish(resolve, pid);
+        }
+      } catch (e) { /* pid file not written yet */ }
+    }, 50);
+
+    const timer = setTimeout(() => {
+      try { launcher.kill(); } catch (e) { }
+      finish(reject, new Error('Timed out waiting for the FFmpeg launcher'));
+    }, timeoutMs);
+
+    if (typeof poll.unref === 'function') {
+      poll.unref();
+    }
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  });
 }
 
 function isFfmpegPidAlive(pid) {
@@ -944,19 +1005,34 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
     };
 
     let ffmpegProcess;
+    let detachedPid = null;
+    let tailStartOffset = 0;
     if (DETACHED_STREAMS) {
       fs.mkdirSync(FFMPEG_LOG_DIR, { recursive: true });
-      const logFd = fs.openSync(ffmpegLogPath(streamId), 'a');
-      try {
-        ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
-          detached: true,
-          stdio: ['ignore', logFd, logFd]
-        });
-      } finally {
-        fs.closeSync(logFd);
-      }
-      ffmpegProcess.unref();
-      db.run('UPDATE streams SET ffmpeg_pid = ? WHERE id = ?', [ffmpegProcess.pid, streamId]);
+      const pidFile = ffmpegPidPath(streamId);
+      try { fs.unlinkSync(pidFile); } catch (e) { /* no stale pid file */ }
+
+      // capture the offset BEFORE spawning: ffmpeg starts writing the moment
+      // the launcher brings it up, and the pid-file round trip takes ~100 ms —
+      // snapshotting later would skip early banner/error lines
+      const logFile = ffmpegLogPath(streamId);
+      const tailStartAt = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
+
+      // spawn through a short-lived launcher so FFmpeg is re-parented to
+      // init and out of reach of process-tree kills (pm2 restart) — see
+      // services/ffmpeg-launcher.js
+      const launcher = spawn(process.execPath, [
+        path.join(__dirname, 'ffmpeg-launcher.js'),
+        pidFile,
+        ffmpegPath,
+        logFile,
+        ...ffmpegArgs
+      ], { detached: true, stdio: 'ignore' });
+      launcher.unref();
+
+      detachedPid = await waitForPidFile(pidFile, launcher);
+      db.run('UPDATE streams SET ffmpeg_pid = ? WHERE id = ?', [detachedPid, streamId]);
+      tailStartOffset = tailStartAt;
     } else {
       ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, {
         detached: false,
@@ -978,19 +1054,18 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       userId: stream.user_id,
       startTime: startTimeIso,
       endTime: originalEndTime,
-      pid: ffmpegProcess.pid,
+      pid: ffmpegProcess ? ffmpegProcess.pid : detachedPid,
       lastActivity: Date.now(),
       detached: DETACHED_STREAMS,
       startupState
     });
 
     if (DETACHED_STREAMS) {
-      // start at EOF: the file also holds output from previous runs of this
-      // stream (retries/restarts) and replaying it would flood the console
-      // and fake a startup-success on old progress lines
-      const logFile = ffmpegLogPath(streamId);
-      const startAt = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
-      startLogTailer(streamId, startAt);
+      // the file also holds output from previous runs of this stream
+      // (retries/restarts) and replaying it would flood the console and
+      // fake a startup-success on old progress lines — hence the offset
+      // captured before the spawn above
+      startLogTailer(streamId, tailStartOffset);
     } else {
       ffmpegProcess.stdout.on('data', (data) => {
         const msg = data.toString().trim();
@@ -1008,7 +1083,9 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       });
     }
 
-    ffmpegProcess.on('exit', async (code, signal) => {
+    // detached FFmpeg runs pid-polled (no child handle here) — its exit is
+    // detected by the health check, same as streams adopted after a restart
+    if (ffmpegProcess) ffmpegProcess.on('exit', async (code, signal) => {
       addStreamLog(streamId, `FFmpeg exited: code=${code}, signal=${signal}`);
 
       const wasActive = activeStreams.delete(streamId);
@@ -1101,7 +1178,7 @@ async function startStream(streamId, isRetry = false, baseUrl = null) {
       }
     });
 
-    ffmpegProcess.on('error', async (err) => {
+    if (ffmpegProcess) ffmpegProcess.on('error', async (err) => {
       addStreamLog(streamId, `Process error: ${err.message}`);
       startupState.lastErrorLine = err.message;
       if (startupState.reject) {
@@ -1596,6 +1673,7 @@ function cleanupStreamFiles(streamId) {
       fs.unlinkSync(logFile);
     }
   } catch (e) { }
+  try { fs.unlinkSync(ffmpegPidPath(streamId)); } catch (e) { }
   db.run('UPDATE streams SET ffmpeg_pid = NULL WHERE id = ?', [streamId]);
 }
 

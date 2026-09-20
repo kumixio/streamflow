@@ -4808,15 +4808,46 @@ server.timeout = 30 * 60 * 1000;
 server.keepAliveTimeout = 30 * 60 * 1000;
 server.headersTimeout = 30 * 60 * 1000;
 
+function shutdownServer() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+
+    // browser keep-alive sockets (keepAliveTimeout is 30 minutes) and any
+    // open monitoring connection hold server.close() open far past pm2's
+    // kill_timeout; pm2 then escalates to a tree-wide SIGKILL, which kills
+    // the detached ffmpeg too and ends live streams. Force the exit below
+    // that threshold instead.
+    const force = setTimeout(() => {
+      if (typeof server.closeIdleConnections === 'function') {
+        server.closeIdleConnections();
+      }
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
+      finish();
+    }, 1000);
+
+    server.close(() => {
+      clearTimeout(force);
+      finish();
+    });
+  });
+}
+
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
   schedulerService.shutdown();
   await streamingService.gracefulShutdown();
   rotationService.shutdown();
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+  await shutdownServer();
+  console.log('Server closed');
+  process.exit(0);
 });
 
 process.on('SIGINT', async () => {
@@ -4824,10 +4855,9 @@ process.on('SIGINT', async () => {
   schedulerService.shutdown();
   await streamingService.gracefulShutdown();
   rotationService.shutdown();
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+  await shutdownServer();
+  console.log('Server closed');
+  process.exit(0);
 });
 
 process.on('uncaughtException', async (error) => {

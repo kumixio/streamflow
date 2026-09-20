@@ -2,11 +2,11 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 31 file — 23 diedit, 8 file baru (+2716 / −1356 baris, di luar dokumen ini).**
+**Total: 32 file — 23 diedit, 9 file baru (+2716 / −1356 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
-| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule dual-mode (ISO absolut utk picker baru / datetime-local lama utk client lama), `sameSite`, hapus route donators, route hapus semua history, limit login 5→10 percobaan/15 menit, session 24 jam → 7 hari, adopsi stream saat boot (pengganti reset offline), **route publik `/home` `/privacy` `/terms`**, **guard channel disconnected di PUT/POST stream YouTube** |
+| `app.js` | diedit | CSRF, cascade delete stream/history/thumbnail, thumbnail original 2MB, parsing schedule dual-mode (ISO absolut utk picker baru / datetime-local lama utk client lama), `sameSite`, hapus route donators, route hapus semua history, limit login 5→10 percobaan/15 menit, session 24 jam → 7 hari, adopsi stream saat boot (pengganti reset offline), **route publik `/home` `/privacy` `/terms`**, **guard channel disconnected di PUT/POST stream YouTube**, **shutdown dipaksa exit <1 detik + putus koneksi idle** (jaga-jaga agar pm2 tak pernah eskalasi ke tree-kill karena `server.close()` menggantung di socket keep-alive) |
 | `db/database.js` | diedit | Tambah index `idx_stream_history_stream_id` + kolom `streams.ffmpeg_pid` + kolom `youtube_channels.is_connected` |
 | `install.sh` | diedit | URL clone diarahkan ke fork ini (`kumixio/streamflow`), bukan upstream |
 | `middleware/uploadMiddleware.js` | diedit | Tambah `uploadStreamThumbnail` (limit 2MB) + `defParamCharset: 'utf8'` di semua instance multer |
@@ -22,7 +22,8 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `scripts/cleanup-orphan-thumbnails.js` | **baru** | Sweep file thumbnail yatim (dry-run default) |
 | `services/schedulerService.js` | diedit | Stream scheduled yang gagal start berulang di-parkir offline setelah 5 percobaan (dulu: retry selamanya tiap 15 detik) + alasan gagal tercatat di console stream; parkir & cancel hanya mengubah status, data waktu tersimpan; stop di end-time kini presisi (timer per-stream, dulu bisa telat sampai ~30 detik); `forgetStream` bersih jejak stream yang dihapus |
 | `services/youtubeService.js` | diedit | MIME type thumbnail mengikuti ekstensi file; validasi `is_connected` sebelum pakai channel |
-| `services/streamingService.js` | diedit | ffmpeg detached di Linux (survive restart), log ffmpeg ke file + tailer, adopsi proses via PID saat boot + sweep proses yatim (start yang terputus restart), `gracefulShutdown` tidak lagi membunuh stream, `cleanupStreamFiles` hapus file log saat stream dihapus |
+| `services/ffmpeg-launcher.js` | **baru** | Launcher double-fork: ffmpeg di-spawn lewat proses perantara yang langsung exit sehingga ffmpeg di-reparent ke init (PPID 1) — **kebal pm2 tree-kill saat restart** (dulu: `pm2 restart` membunuh ffmpeg yang sedang live walau detached, karena detached hanya memisahkan session, bukan parent)
+| `services/streamingService.js` | diedit | ffmpeg detached di Linux (survive restart), log ffmpeg ke file + tailer, adopsi proses via PID saat boot + sweep proses yatim (start yang terputus restart), spawn via `ffmpeg-launcher.js` (double-fork + pidfile, exit-deteksi via polling pid gaya adopted dari detik pertama), `gracefulShutdown` tidak lagi membunuh stream, `cleanupStreamFiles` hapus file log saat stream dihapus |
 | `utils/storage.js` | diedit | Tambah helper `deleteLocalUpload` |
 | `utils/videoProcessor.js` | diedit | `generateImageThumbnail` → `generateRotationThumbnail` |
 | `views/dashboard.ejs` | diedit | Schedule picker, char counter, delete utk scheduled, cek 2MB, submit ISO absolut di SEMUA form (manual + YouTube) sehingga timezone-safe, dialog shared, label channel disconnected di picker, **picker channel di modal edit** (sebelumnya channel gak bisa diganti saat edit), **opsi channel disconnected di-disable di picker create & edit**, **filter status (live/scheduled/offline) + filter rentang tanggal** di toolbar Streams |
