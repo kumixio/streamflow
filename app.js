@@ -64,7 +64,7 @@ app.locals.helpers = {
   getAvatar: function (req) {
     if (req.session && req.session.userId) {
       const avatarPath = req.session.avatar_path;
-      if (avatarPath) {
+      if (avatarPath && avatarPath !== '/uploads/avatars/default-avatar.png' && avatarPath !== '/uploads/avatars/default-avatar.jpg') {
         return `<img src="${avatarPath}" alt="${req.session.username || 'User'}'s Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-avatar.png';">`;
       }
     }
@@ -184,6 +184,13 @@ app.get('/sw.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'sw.js'));
 });
 
+app.get('/images/default-channel.png', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'images', 'default-avatar.png'));
+});
+app.get(['/images/default-thumbnail.jpg', '/images/video-placeholder.png'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'images', 'default-video-thumbnail.svg'));
+});
+
 app.use('/uploads', function (req, res, next) {
   res.header('Cache-Control', 'no-cache');
   res.header('Pragma', 'no-cache');
@@ -243,6 +250,9 @@ app.use('/uploads/avatars', (req, res, next) => {
   const filename = path.basename(req.path);
   if (!filename || filename === 'avatars') {
     return res.status(403).send('Access denied');
+  }
+  if (filename === 'default-avatar.png' || filename === 'default-avatar.jpg') {
+    return res.sendFile(path.join(__dirname, 'public', 'images', 'default-avatar.png'));
   }
   const file = path.join(__dirname, 'public', 'uploads', 'avatars', filename);
   if (fs.existsSync(file) && fs.statSync(file).isFile()) {
@@ -3150,6 +3160,31 @@ app.post('/api/streams/youtube', isAuthenticated, streamThumbnailUpload, async (
   }
 });
 
+app.get('/api/streams/check-key', isAuthenticated, async (req, res) => {
+  try {
+    const streamKey = req.query.key;
+    const excludeId = req.query.excludeId || null;
+    if (!streamKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Stream key is required'
+      });
+    }
+    const isInUse = await Stream.isStreamKeyInUse(streamKey, req.session.userId, excludeId);
+    res.json({
+      success: true,
+      isInUse: isInUse,
+      message: isInUse ? 'Stream key is already in use' : 'Stream key is available'
+    });
+  } catch (error) {
+    console.error('Error checking stream key:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check stream key'
+    });
+  }
+});
+
 app.get('/api/streams/:id', isAuthenticated, async (req, res) => {
   try {
     const stream = await Stream.getStreamWithVideo(req.params.id);
@@ -3678,30 +3713,6 @@ app.post('/api/streams/:id/status', isAuthenticated, [
   } catch (error) {
     console.error('Error updating stream status:', error);
     res.status(500).json({ success: false, error: 'Failed to update stream status' });
-  }
-});
-app.get('/api/streams/check-key', isAuthenticated, async (req, res) => {
-  try {
-    const streamKey = req.query.key;
-    const excludeId = req.query.excludeId || null;
-    if (!streamKey) {
-      return res.status(400).json({
-        success: false,
-        error: 'Stream key is required'
-      });
-    }
-    const isInUse = await Stream.isStreamKeyInUse(streamKey, req.session.userId, excludeId);
-    res.json({
-      success: true,
-      isInUse: isInUse,
-      message: isInUse ? 'Stream key is already in use' : 'Stream key is available'
-    });
-  } catch (error) {
-    console.error('Error checking stream key:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to check stream key'
-    });
   }
 });
 app.get('/api/streams/:id/logs', isAuthenticated, async (req, res) => {

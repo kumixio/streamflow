@@ -1,6 +1,6 @@
 
 const CACHE_NAME = 'streamflow-v2-cache';
-const CACHE_VERSION = '1.8.0';
+const CACHE_VERSION = '1.8.1';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_RESOURCES = [
@@ -19,15 +19,17 @@ const STATIC_RESOURCES = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(FULL_CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Caching static resources');
-        return cache.addAll(STATIC_RESOURCES);
+        return Promise.allSettled(
+          STATIC_RESOURCES.map(resource => cache.add(resource).catch(() => {}))
+        );
       })
       .then(() => {
         console.log('Service Worker: All resources cached successfully');
-        return self.skipWaiting();
       })
       .catch((error) => {
         console.error('Service Worker: Failed to cache resources', error);
@@ -61,6 +63,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = event.request.url;
+  // Ignore non-HTTP/HTTPS schemes (e.g. chrome-extension://)
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return;
+  }
+
   const isFontRequest = url.includes('tabler-icons') ||
                         url.endsWith('.woff2') ||
                         url.endsWith('.woff') ||
@@ -81,8 +88,9 @@ self.addEventListener('fetch', (event) => {
               const responseToCache = response.clone();
               caches.open(FULL_CACHE_NAME)
                 .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
+                  cache.put(event.request, responseToCache).catch(() => {});
+                })
+                .catch(() => {});
               return response;
             });
         })
@@ -104,8 +112,9 @@ self.addEventListener('fetch', (event) => {
 
           caches.open(FULL_CACHE_NAME)
             .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+              cache.put(event.request, responseToCache).catch(() => {});
+            })
+            .catch(() => {});
 
           return response;
         })
@@ -117,6 +126,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 function isStaticResource(url) {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return false;
   return STATIC_RESOURCES.some(resource => url.includes(resource)) ||
          url.includes('tabler-icons') ||
          url.includes('cdn.jsdelivr.net') ||

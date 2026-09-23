@@ -62,7 +62,7 @@
                   <div class="flex items-center">
                     <div class="w-10 h-6 bg-dark-700 rounded flex-shrink-0 overflow-hidden mr-3">
                       <% if (entry.thumbnail_path) { %>
-                        <img src="<%= entry.thumbnail_path %>" class="w-full h-full object-cover" onerror="this.src='/images/default-thumbnail.jpg'">
+                        <img src="<%= entry.thumbnail_path %>" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-video-thumbnail.svg'">
                       <% } else { %>
                         <div class="w-full h-full bg-dark-600 flex items-center justify-center">
                           <i class="ti ti-video text-gray-400 text-xs"></i>

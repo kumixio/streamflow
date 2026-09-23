@@ -313,7 +313,7 @@
               <label class="text-sm font-medium text-white block mb-2">YouTube Channel</label>
               <div class="relative" id="rotationChannelSelector">
                 <button type="button" onclick="toggleRotationChannelDropdown()" class="w-full flex items-center gap-3 px-3 py-2.5 bg-dark-700 border border-gray-600 rounded-lg hover:border-gray-500 focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-left">
-                  <img id="rotationChannelThumb" src="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default) || youtubeChannels[0]).channel_thumbnail : '' %>" alt="" class="w-6 h-6 rounded-full object-cover flex-shrink-0" onerror="this.src='/images/default-avatar.png'">
+                  <img id="rotationChannelThumb" src="<%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? ((youtubeChannels.find(c => c.is_default) || youtubeChannels[0]).channel_thumbnail || '/images/default-avatar.png') : '/images/default-avatar.png' %>" alt="" class="w-6 h-6 rounded-full object-cover flex-shrink-0" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
                   <span id="rotationChannelName" class="flex-1 text-sm text-white truncate"><%= typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0 ? (youtubeChannels.find(c => c.is_default) || youtubeChannels[0]).channel_name : 'Select Channel' %></span>
                   <i class="ti ti-chevron-down text-gray-400 flex-shrink-0"></i>
                 </button>
@@ -321,7 +321,7 @@
                   <% if (typeof youtubeChannels !== 'undefined' && youtubeChannels.length > 0) { %>
                     <% youtubeChannels.forEach(function(channel) { %>
                     <button type="button" onclick="selectRotationChannel('<%= channel.id %>', '<%= channel.channel_name %>', '<%= channel.channel_thumbnail %>')" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-600 text-left rotation-channel-option" data-channel-id="<%= channel.id %>">
-                      <img src="<%= channel.channel_thumbnail %>" alt="" class="w-6 h-6 rounded-full object-cover flex-shrink-0" onerror="this.src='/images/default-channel.png'">
+                      <img src="<%= channel.channel_thumbnail || '/images/default-avatar.png' %>" alt="" class="w-6 h-6 rounded-full object-cover flex-shrink-0" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
                       <span class="text-sm text-white truncate"><%= channel.channel_name %></span>
                     </button>
                     <% }); %>
@@ -717,7 +717,7 @@ function initVideoSelector(itemEl, idx) {
         return `
           <div class="video-option flex items-center gap-3 p-2 rounded-lg hover:bg-dark-600 cursor-pointer transition-colors" data-id="${v.id}" data-title="${v.title}" data-type="video">
             <div class="w-16 h-10 bg-dark-800 rounded overflow-hidden flex-shrink-0 relative">
-              <img src="${thumb}" alt="" class="w-full h-full object-cover" onerror="this.src='/images/video-placeholder.png'">
+              <img src="${thumb}" alt="" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-video-thumbnail.svg'">
               ${duration ? `<span class="absolute bottom-0.5 right-0.5 bg-black/80 text-white text-xs px-1 rounded">${duration}</span>` : ''}
             </div>
             <div class="flex-1 min-w-0">
