@@ -27,6 +27,7 @@ const chunkUploadService = require('./services/chunkUploadService');
 const audioConverter = require('./services/audioConverter');
 const { ensureDirectories, deleteLocalUpload } = require('./utils/storage');
 const { getVideoInfo, generateThumbnail, generateRotationThumbnail } = require('./utils/videoProcessor');
+const { encrypt, decrypt } = require('./utils/encryption');
 const Video = require('./models/Video');
 const MediaFolder = require('./models/MediaFolder');
 const Playlist = require('./models/Playlist');
@@ -331,7 +332,6 @@ app.post('/login', loginDelayMiddleware, loginLimiter, async (req, res) => {
         });
       }
       
-      const { decrypt } = require('./utils/encryption');
       const secretKey = decrypt(recaptchaSettings.secretKey);
       
       const axios = require('axios');
@@ -792,7 +792,6 @@ app.get('/settings', isAuthenticated, async (req, res) => {
       return res.redirect('/login');
     }
     
-    const { decrypt } = require('./utils/encryption');
     const YoutubeChannel = require('./models/YoutubeChannel');
     const AppSettings = require('./models/AppSettings');
     const hasYoutubeCredentials = !!(user.youtube_client_id && user.youtube_client_secret);
