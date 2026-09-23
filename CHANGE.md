@@ -2,7 +2,7 @@
 
 Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangtutorial/streamflow)](https://github.com/bangtutorial/streamflow), baseline commit `9dc36f0`.
 
-**Total: 44 file — 26 diedit, 10 file baru (termasuk avatar PNG), 8 dihapus (+3348 / −2925 baris, di luar dokumen ini).**
+**Total: 44 file — 26 diedit, 10 file baru (termasuk avatar PNG), 8 dihapus (+3342 / −3039 baris, di luar dokumen ini).**
 
 | File | Status | Ringkasan |
 |---|---|---|
@@ -18,7 +18,7 @@ Dokumen ini merangkum semua perubahan fork ini dibanding [streamflow asli (bangt
 | `public/js/custom-dialog.js` | **baru** | Dialog konfirmasi/prompt in-app shared (pengganti dialog bawaan browser); **theme `info` di-retheme ke primary merah** (tadinya biru — dipakai dialog create/rename folder dll); **handler global: klik area gelap di luar kartu menutup modal aplikasi apa pun** yang punya class `.modal-overlay` (New Stream, Upload, Playlist, Rotation, modal Users, media viewer gallery — ditutup lewat tombol close-nya sendiri biar cleanup/reset tiap modal tetap jalan; klik di dalam kartu tidak menutup) |
 | `public/js/schedule-picker.js` | **baru** | Komponen schedule picker kustom (kalender + slot waktu) |
 | `public/js/stream-modal.js` | diedit | Revive tombol submit saat modal dibuka ulang |
-| `public/sw.js` | diedit | Static resources jadi network-first, precache + csrf.js + custom-dialog.js, versi cache 1.8.1 (precache logo ganti `kumix-logo.png`), filter skema non-HTTP (`chrome-extension`) agar tidak crash di Chrome |
+| `public/sw.js` | diedit | **Sistem Service Worker dihapus total** (diubah jadi killer/self-destruct worker yang otomatis unregister diri sendiri & nuke semua cache browser pengunjung), registrasi di layout diganti script auto-unregister global, asset stylesheet diberi cache-buster `?v=2.0` |
 | `public/css/styles.css` | diedit | `--primary-color` #0055FF → #E8102A (retheme merah Kumix); **`.sidebar-icon` jadi baris horizontal** (icon + label sebaris, mengikuti sidebar lebar — tooltip sidebar dihapus); **popup select di-custom** (color-scheme dark + `appearance: base-select` di Chrome/Edge 131+): panel gelap rounded, hover/checked merah Kumix, label panjang di-force 1 baris `nowrap` — browser tanpa dukungan tetap popup native |
 | `public/images/default-avatar.png` | **baru** | Avatar default Kumix (ilustrasi) — ganti `default-avatar.jpg` bawaan; dipakai fallback onerror + user baru tanpa avatar |
 | `public/images/logo.svg` | **dihapus** | Yatim setelah rebrand `kumix-logo.png` |
