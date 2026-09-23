@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>
-    <%= title %> - StreamFlow
+    <%= title %> - Kumix Stream
   </title>
-  <link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="/images/kumix-logo.png" type="image/png">
   <meta name="csrf-token" content="<%= csrfToken %>">
   <script src="/js/csrf.js"></script>
   <script src="/js/custom-dialog.js"></script>
@@ -28,8 +28,8 @@
         },
         extend: {
           colors: {
-            'primary': '#0055FF',
-            'secondary': '#0043CA',
+            'primary': '#E8102A',
+            'secondary': '#C00D22',
             'dark': {
               '900': '#121212',
               '800': '#252525',
@@ -75,58 +75,68 @@
 </head>
 <body class="bg-dark-900 text-white font-inter">
   <div
-    class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-dark-800 shadow-lg flex items-center justify-between px-6 z-30">
-    <div class="flex items-center">
-      <img src="/images/logo_mobile.svg" alt="StreamFlow Logo" class="h-8">
-    </div>
-    <div class="flex items-center gap-1">
+    class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-dark-800 shadow-lg flex items-center justify-between px-4 sm:px-6 z-30">
+    <a href="/dashboard" class="flex items-center gap-2 min-w-0">
+      <img src="/images/kumix-logo.png" alt="Kumix Stream Logo" class="h-8 shrink-0">
+      <span class="text-lg font-bold tracking-tight truncate">Kumix <span class="text-primary">Stream</span></span>
+    </a>
+    <div class="flex items-center gap-1 shrink-0">
       <div id="mobile-server-time" class="hidden items-center gap-1.5 text-gray-400 text-sm mr-2">
         <span id="mobile-server-date">--</span>
         <span class="text-gray-600">•</span>
         <span id="mobile-server-clock" class="tabular-nums">--:--:--</span>
       </div>
       <div id="mobile-separator" class="hidden h-4 w-px bg-gray-600 mr-1"></div>
+      <button id="sidebar-toggle" aria-label="Open menu"
+        class="p-2 text-gray-300 hover:text-white rounded-lg transition-colors shrink-0">
+        <i class="ti ti-menu-2 text-xl"></i>
+      </button>
+      <button id="mobile-profile-menu-button" title="<%= helpers.getUsername(req) %>"
+        class="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-gray-700 hover:ring-primary transition-all">
+        <%- helpers.getAvatar(req) %>
+      </button>
     </div>
   </div>
+  <div id="sidebar-backdrop" class="lg:hidden fixed inset-0 bg-black/60 z-40 hidden"></div>
   <div class="flex">
-    <div class="hidden lg:flex lg:fixed lg:flex-col w-20 h-screen pt-2 bg-dark-800 shadow-lg overflow-hidden">
-      <div class="flex items-center justify-center h-14 w-14 mx-auto mb-4">
-        <img src="/images/logo.svg" alt="StreamFlow Logo" class="w-9 h-9">
-      </div>
-      <div class="flex-1">
-        <a href="/dashboard" class="sidebar-icon group <%= active === 'dashboard' ? 'bg-primary' : '' %>">
+    <div id="app-sidebar"
+      class="fixed inset-y-0 left-0 z-50 flex flex-col w-60 h-screen bg-dark-800 shadow-lg overflow-hidden -translate-x-full transition-transform duration-200 ease-out lg:translate-x-0 lg:z-auto">
+      <a href="/dashboard" class="flex items-center gap-3 h-16 px-5 shrink-0 border-b border-dark-700">
+        <img src="/images/kumix-logo.png" alt="Kumix Stream Logo" class="w-8 h-8 shrink-0">
+        <span class="text-lg font-bold tracking-tight">Kumix <span class="text-primary">Stream</span></span>
+      </a>
+      <nav class="flex-1 overflow-y-auto px-3 pt-3 pb-4">
+        <a href="/dashboard" class="sidebar-icon <%= active === 'dashboard' ? 'bg-primary' : '' %>">
           <i class="ti ti-broadcast text-xl"></i>
-          <span class="text-xs mt-1">Streams</span>
-          <span class="sidebar-tooltip group-hover:scale-100">Stream Manager</span>
+          <span>Streams</span>
         </a>
-        <a href="/rotations" class="sidebar-icon group <%= active === 'rotations' ? 'bg-primary' : '' %>">
+        <a href="/rotations" class="sidebar-icon <%= active === 'rotations' ? 'bg-primary' : '' %>">
           <i class="ti ti-rotate text-xl"></i>
-          <span class="text-xs mt-1">Rotations</span>
-          <span class="sidebar-tooltip group-hover:scale-100">Stream Rotations</span>
+          <span>Rotations</span>
         </a>
-        <a href="/gallery" class="sidebar-icon group <%= active === 'gallery' ? 'bg-primary' : '' %>">
+        <a href="/gallery" class="sidebar-icon <%= active === 'gallery' ? 'bg-primary' : '' %>">
           <i class="ti ti-video text-xl"></i>
-          <span class="text-xs mt-1">Gallery</span>
-          <span class="sidebar-tooltip group-hover:scale-100">Video Gallery</span>
+          <span>Gallery</span>
         </a>
-        <a href="/playlist" class="sidebar-icon group <%= active === 'playlist' ? 'bg-primary' : '' %>">
+        <a href="/playlist" class="sidebar-icon <%= active === 'playlist' ? 'bg-primary' : '' %>">
           <i class="ti ti-playlist text-xl"></i>
-          <span class="text-xs mt-1">Playlist</span>
-          <span class="sidebar-tooltip group-hover:scale-100">Playlist Manager</span>
+          <span>Playlist</span>
         </a>
-        <a href="/history" class="sidebar-icon group <%= active === 'history' ? 'bg-primary' : '' %>">
+        <a href="/history" class="sidebar-icon <%= active === 'history' ? 'bg-primary' : '' %>">
           <i class="ti ti-history text-xl"></i>
-          <span class="text-xs mt-1">History</span>
-          <span class="sidebar-tooltip group-hover:scale-100">Stream History</span>
+          <span>History</span>
         </a>
         <% if (req.session && req.session.user_role === 'admin') { %>
-        <a href="/users" class="sidebar-icon group <%= active === 'users' ? 'bg-primary' : '' %>">
+        <a href="/users" class="sidebar-icon <%= active === 'users' ? 'bg-primary' : '' %>">
           <i class="ti ti-users text-xl"></i>
-          <span class="text-xs mt-1">Users</span>
-          <span class="sidebar-tooltip group-hover:scale-100">User Management</span>
+          <span>Users</span>
         </a>
         <% } %>
-      </div>
+        <a href="/settings" class="sidebar-icon <%= active === 'settings' ? 'bg-primary' : '' %>">
+          <i class="ti ti-settings text-xl"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
     </div>
     <div id="profile-dropdown" class="fixed bg-dark-800 shadow-xl border border-gray-700 hidden">
       <div class="px-4 py-2 border-b border-gray-700">
@@ -134,20 +144,14 @@
           <%= helpers.getUsername(req) %>
         </div>
       </div>
-      <a href="/settings"
-        class="flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-700 hover:text-white transition-colors">
-        <i class="ti ti-settings mr-3"></i>
-        <span>Settings</span>
-      </a>
-      <div class="h-px bg-gray-700 mx-4"></div>
       <a href="/logout" class="flex items-center px-4 py-2.5 text-sm text-logout hover:bg-dark-700 transition-colors">
         <i class="ti ti-logout mr-3"></i>
         <span>Sign Out</span>
       </a>
     </div>
-    <div class="w-full lg:ml-20 flex flex-col min-h-screen">
+    <div class="w-full lg:ml-60 flex flex-col min-h-screen">
       <div
-        class="hidden lg:fixed lg:flex top-0 right-0 left-20 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10">
+        class="hidden lg:fixed lg:flex top-0 right-0 left-60 items-center justify-end h-14 px-6 bg-dark-800 shadow-md z-10">
         <div id="server-time-display" class="flex items-center gap-1.5 text-gray-400 text-sm mr-4">
           <span id="server-date">--</span>
           <span class="text-gray-600">•</span>
@@ -161,61 +165,6 @@
       </div>
       <div class="p-6 pt-20 lg:pt-22 flex-1">
         <%- body %>
-      </div>
-    </div>
-  </div>
-  <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-dark-800 border-t border-gray-700 shadow-lg z-30">
-    <nav class="flex justify-around items-center h-16">
-      <a href="/dashboard" class="bottom-nav-item <%= active === 'dashboard' ? 'bottom-nav-active' : '' %>">
-        <i class="ti ti-broadcast"></i>
-        <span>Streams</span>
-      </a>
-      <a href="/rotations" class="bottom-nav-item <%= active === 'rotations' ? 'bottom-nav-active' : '' %>">
-        <i class="ti ti-rotate"></i>
-        <span>Rotations</span>
-      </a>
-      <a href="/gallery" class="bottom-nav-item <%= active === 'gallery' ? 'bottom-nav-active' : '' %>">
-        <i class="ti ti-video"></i>
-        <span>Gallery</span>
-      </a>
-      <a href="/playlist" class="bottom-nav-item <%= active === 'playlist' ? 'bottom-nav-active' : '' %>">
-        <i class="ti ti-playlist"></i>
-        <span>Playlist</span>
-      </a>
-      <button id="mobile-profile-btn" class="bottom-nav-item">
-        <div class="relative">
-          <div class="w-6 h-6 rounded-full overflow-hidden mx-auto">
-            <%- helpers.getAvatar(req) %>
-          </div>
-        </div>
-        <span>Profile</span>
-      </button>
-    </nav>
-    <div id="mobile-profile-popup"
-      class="fixed bottom-16 right-2 bg-dark-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden hidden transform transition-all duration-200 ease-out opacity-0 translate-y-4 w-40">
-      <div class="py-2 px-3">
-        <div class="text-sm font-medium mb-1">
-          <%= helpers.getUsername(req) %>
-        </div>
-        <div class="text-xs text-gray-400 mb-2">
-          <%= req.session.email || '' %>
-        </div>
-        <div class="h-px bg-gray-700 my-2"></div>
-        <% if (req.session && req.session.user_role === 'admin') { %>
-        <a href="/users" class="flex items-center py-2 text-gray-300 hover:text-white text-sm">
-          <i class="ti ti-users mr-2"></i>
-          <span>Users</span>
-        </a>
-        <% } %>
-        <a href="/settings" class="flex items-center py-2 text-gray-300 hover:text-white text-sm">
-          <i class="ti ti-settings mr-2"></i>
-          <span>Settings</span>
-        </a>
-        <div class="h-px bg-gray-700 my-2"></div>
-        <a href="/logout" class="flex items-center py-2 text-red-400 hover:text-red-300 text-sm">
-          <i class="ti ti-logout mr-2"></i>
-          <span>Sign Out</span>
-        </a>
       </div>
     </div>
   </div>
@@ -273,101 +222,52 @@
       padding-top: 16px;
     }
   }
-  .bottom-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    text-align: center;
-    padding: 8px 0;
-    color: #8F8F8F;
-    position: relative;
-    transition: color 0.2s ease;
-  }
-  .bottom-nav-item i {
-    font-size: 22px;
-    margin-bottom: 4px;
-  }
-  .bottom-nav-item span {
-    font-size: 11px;
-  }
-  .bottom-nav-item:hover {
-    color: #E5E5E5;
-  }
-  .bottom-nav-active {
-    color: #0055FF;
-  }
-  .bottom-nav-active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 24px;
-    height: 3px;
-    background-color: #0055FF;
-    border-radius: 0 0 4px 4px;
-  }
   @media (max-width: 1023px) {
-    .min-h-screen {
-      padding-bottom: 80px !important;
-    }
-    #mobile-profile-popup.show {
-      opacity: 1;
-      transform: translateY(0);
-      visibility: visible;
+    #profile-dropdown {
+      top: 66px;
     }
   }
 </style>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const profileButton = document.getElementById('profile-menu-button');
+    const profileButtons = ['profile-menu-button', 'mobile-profile-menu-button']
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
     const profileDropdown = document.getElementById('profile-dropdown');
-    if (!profileButton || !profileDropdown) return;
-    profileButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const isHidden = profileDropdown.classList.contains('hidden');
-      profileDropdown.classList.toggle('hidden');
-    });
-    document.addEventListener('click', (e) => {
-      const isClickInsideDropdown = profileDropdown.contains(e.target);
-      const isClickOnButton = profileButton.contains(e.target);
-      if (!isClickInsideDropdown && !isClickOnButton && !profileDropdown.classList.contains('hidden')) {
-        profileDropdown.classList.add('hidden');
-      }
-    });
-    profileDropdown.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-    const profileBtn = document.getElementById('mobile-profile-btn');
-    const profilePopup = document.getElementById('mobile-profile-popup');
-    if (profileBtn && profilePopup) {
-      profileBtn.addEventListener('click', function (e) {
-        e.preventDefault();
+    if (profileButtons.length && profileDropdown) {
+      profileButtons.forEach(button => button.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (profilePopup.classList.contains('hidden')) {
-          profilePopup.classList.remove('hidden');
-          setTimeout(() => {
-            profilePopup.classList.add('show');
-          }, 10);
-        } else {
-          profilePopup.classList.remove('show');
-          setTimeout(() => {
-            profilePopup.classList.add('hidden');
-          }, 200);
+        e.preventDefault();
+        profileDropdown.classList.toggle('hidden');
+      }));
+      document.addEventListener('click', (e) => {
+        const insideDropdown = profileDropdown.contains(e.target);
+        const onButton = profileButtons.some(button => button.contains(e.target));
+        if (!insideDropdown && !onButton && !profileDropdown.classList.contains('hidden')) {
+          profileDropdown.classList.add('hidden');
         }
       });
-      document.addEventListener('click', function (e) {
-        if (!profilePopup.classList.contains('hidden') &&
-          !profileBtn.contains(e.target) &&
-          !profilePopup.contains(e.target)) {
-          profilePopup.classList.remove('show');
-          setTimeout(() => {
-            profilePopup.classList.add('hidden');
-          }, 200);
-        }
+      profileDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const appSidebar = document.getElementById('app-sidebar');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+    if (sidebarToggle && appSidebar && sidebarBackdrop) {
+      const closeSidebar = () => {
+        appSidebar.classList.remove('translate-x-0');
+        sidebarBackdrop.classList.add('hidden');
+      };
+      sidebarToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = appSidebar.classList.toggle('translate-x-0');
+        sidebarBackdrop.classList.toggle('hidden', !open);
+      });
+      sidebarBackdrop.addEventListener('click', closeSidebar);
+      appSidebar.querySelectorAll('a[href]').forEach(link => link.addEventListener('click', closeSidebar));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebar();
       });
     }
   });

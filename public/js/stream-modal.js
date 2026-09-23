@@ -400,11 +400,11 @@ function updateCreateButtonState() {
   if (audioCodecWarningActive && !isAdvancedEnabled) {
     createBtn.disabled = true;
     createBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    createBtn.classList.remove('hover:bg-blue-600');
+    createBtn.classList.remove('hover:bg-secondary');
   } else {
     createBtn.disabled = false;
     createBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    createBtn.classList.add('hover:bg-blue-600');
+    createBtn.classList.add('hover:bg-secondary');
   }
 }
 

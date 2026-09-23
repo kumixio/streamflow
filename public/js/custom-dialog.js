@@ -20,8 +20,8 @@
 function createModalDialog(options) {
   const themes = {
     info: {
-      icon: 'ti-info-circle', color: 'text-blue-600', bg: 'bg-blue-600/10',
-      border: 'border-gray-600/50', button: 'bg-blue-600 hover:bg-blue-700', buttonIcon: 'ti-check'
+      icon: 'ti-info-circle', color: 'text-primary', bg: 'bg-primary/10',
+      border: 'border-gray-600/50', button: 'bg-primary hover:bg-secondary', buttonIcon: 'ti-check'
     },
     danger: {
       icon: 'ti-alert-triangle', color: 'text-red-400', bg: 'bg-red-500/10',
@@ -131,5 +131,18 @@ function createModalDialog(options) {
     }
   });
 }
+
+// Klik di area gelap di sekitar kartu menutup modal aplikasi (New Stream,
+// Upload, Playlist, dll) — tidak harus lewat tombol X/Cancel. Modal tetap
+// ditutup lewat tombol close-nya sendiri supaya cleanup/reset khusus tiap
+// modal ikut dijalankan.
+document.addEventListener('click', function (e) {
+  const overlay = e.target.closest('.modal-overlay');
+  if (!overlay) return;
+  // klik di dalam kartu modal tidak menutup apa pun
+  if (e.target.closest('.modal-container, [role="dialog"], [role="alertdialog"], form, .bg-dark-800')) return;
+  const closeBtn = overlay.querySelector('[onclick^="close"], [data-close-modal]');
+  if (closeBtn) closeBtn.click();
+});
 
 window.createModalDialog = createModalDialog;

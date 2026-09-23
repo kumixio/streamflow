@@ -35,13 +35,13 @@ function formatDuration(seconds) {
       <span id="diskUsageTextMobile"></span>
     </p>
   </div>
-  <div class="flex gap-3">
-    <button onclick="openUploadModal()" class="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+  <div class="flex flex-col sm:flex-row gap-3">
+    <button onclick="openUploadModal()" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors">
       <i class="ti ti-upload"></i>
       <span>Upload Media</span>
     </button>
     <div class="relative">
-      <button onclick="toggleCloudDropdown()" class="flex items-center gap-2 bg-dark-700 border border-gray-600 hover:bg-dark-600 text-white px-4 py-2 rounded-lg transition-colors">
+      <button onclick="toggleCloudDropdown()" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-dark-700 border border-gray-600 hover:bg-dark-600 text-white px-4 py-2 rounded-lg transition-colors">
         <i class="ti ti-cloud-download"></i>
         <span>Import from Cloud</span>
         <i class="ti ti-chevron-down text-sm"></i>
@@ -92,23 +92,25 @@ function formatDuration(seconds) {
 
 <div class="bg-gray-800 rounded-lg shadow-md overflow-hidden">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-gray-700 gap-4">
-    <div class="flex items-center gap-3">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
       <div class="relative w-full sm:w-64">
         <input type="text" id="searchInput" placeholder="Search files and folders..."
           class="w-full bg-dark-700 border border-gray-600 text-white pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
         <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
       </div>
-      <select id="typeFilter" class="bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
-        <option value="all">All Media</option>
-        <option value="video">Video</option>
-        <option value="audio">Audio</option>
-      </select>
-      <select id="sortSelect" class="bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="name">Name</option>
-        <option value="size">Size</option>
-      </select>
+      <div class="grid grid-cols-2 gap-3 w-full sm:flex">
+        <select id="typeFilter" class="w-full sm:w-auto bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="all">All Media</option>
+          <option value="video">Video</option>
+          <option value="audio">Audio</option>
+        </select>
+        <select id="sortSelect" class="w-full sm:w-auto bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="name">Name</option>
+          <option value="size">Size</option>
+        </select>
+      </div>
     </div>
     <div class="flex items-center gap-2">
       <% if (!currentFolder) { %>
@@ -300,7 +302,7 @@ function formatDuration(seconds) {
       </div>
       <h3 class="text-lg font-medium text-gray-300 mb-2">No items yet</h3>
       <p class="text-gray-500 text-sm mb-4">Upload your first media or create a folder to get started</p>
-      <button onclick="openUploadModal()" class="inline-flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+      <button onclick="openUploadModal()" class="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors">
         <i class="ti ti-upload"></i>
         <span>Upload Media</span>
       </button>
@@ -348,7 +350,7 @@ function formatDuration(seconds) {
                 <p id="dropzoneText" class="text-gray-300">Drag and drop video files here</p>
                 <p class="text-gray-500 text-sm">Or click to browse</p>
               </div>
-              <label class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors inline-block cursor-pointer">
+              <label class="bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors inline-block cursor-pointer">
                 <span>Select files</span>
                 <input type="file" name="media" accept="video/mp4,video/avi,video/quicktime" multiple class="hidden" id="mediaFileInput">
               </label>
@@ -368,7 +370,7 @@ function formatDuration(seconds) {
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <button type="button" class="text-primary hover:text-blue-400 text-sm" onclick="document.getElementById('mediaFileInput').click()">Add more</button>
+                  <button type="button" class="text-primary hover:text-red-400 text-sm" onclick="document.getElementById('mediaFileInput').click()">Add more</button>
                   <button type="button" id="clearFileButton" class="text-gray-400 hover:text-white p-1">
                     <i class="ti ti-x"></i>
                   </button>
@@ -391,7 +393,7 @@ function formatDuration(seconds) {
       </div>
       <div class="flex justify-end gap-3 p-4 border-t border-gray-700">
         <button onclick="closeUploadModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors">Cancel</button>
-        <button id="uploadButton" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+        <button id="uploadButton" class="px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
           <i class="ti ti-upload mr-1.5"></i>Upload
         </button>
       </div>
@@ -404,7 +406,7 @@ function formatDuration(seconds) {
     <div id="cloudModalContent" class="bg-dark-800 rounded-lg shadow-xl w-full max-w-md">
       <div class="flex items-center justify-between p-4 border-b border-gray-700">
         <h3 id="cloudModalTitle" class="text-lg font-semibold">Import from Cloud</h3>
-        <button id="closeCloudBtn" class="text-gray-400 hover:text-white">
+        <button id="closeCloudBtn" onclick="closeCloudModal()" class="text-gray-400 hover:text-white">
           <i class="ti ti-x text-xl"></i>
         </button>
       </div>
@@ -596,7 +598,7 @@ function initializeGalleryViewButtons() {
 
 function playMedia(mediaId, mediaTitle, mediaType) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm modal-overlay p-4';
   modal.id = 'media-player-modal';
   
   if (mediaType === 'audio') {
@@ -960,7 +962,7 @@ function initCloudModal(type) {
         <i class="ti ti-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
       </div>
       <p class="text-xs text-gray-500 mb-4">${config.hint}</p>
-      <button id="import-cloud-button" class="w-full bg-primary hover:bg-blue-600 text-white py-2 rounded-lg transition-colors flex items-center justify-center">
+      <button id="import-cloud-button" class="w-full bg-primary hover:bg-secondary text-white py-2 rounded-lg transition-colors flex items-center justify-center">
         <i class="ti ti-download mr-2"></i>
         Import Video
       </button>
@@ -1609,7 +1611,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <h3 class="text-lg font-medium text-gray-300 mb-2">No items yet</h3>
           <p class="text-gray-500 text-sm mb-4">Upload your first media or create a folder to get started</p>
-          <button onclick="openUploadModal()" class="inline-flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+          <button onclick="openUploadModal()" class="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors">
             <i class="ti ti-upload"></i>
             <span>Upload Media</span>
           </button>

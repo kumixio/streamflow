@@ -377,12 +377,6 @@ function createTables() {
         }
       });
 
-      db.run(`ALTER TABLE users ADD COLUMN welcome_shown INTEGER DEFAULT 0`, (err) => {
-        if (err && !err.message.includes('duplicate column name')) {
-          console.error('Error adding welcome_shown column to users:', err.message);
-        }
-      });
-
       db.run(`ALTER TABLE streams ADD COLUMN youtube_monetization INTEGER DEFAULT 0`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {
           console.error('Error adding youtube_monetization column to streams:', err.message);

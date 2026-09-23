@@ -1,6 +1,6 @@
 
 const CACHE_NAME = 'streamflow-v2-cache';
-const CACHE_VERSION = '1.2.0';
+const CACHE_VERSION = '1.8.0';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_RESOURCES = [
@@ -15,7 +15,7 @@ const STATIC_RESOURCES = [
   '/js/schedule-picker.js',
   '/js/stream-modal.js',
 
-  '/images/logo.svg'
+  '/images/kumix-logo.png'
 ];
 
 self.addEventListener('install', (event) => {

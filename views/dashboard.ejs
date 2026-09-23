@@ -142,20 +142,22 @@
             class="w-full bg-dark-700 border border-gray-600 text-white pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary">
           <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
         </div>
-        <select id="streams-status-filter" onchange="applyStreamFilters()"
-          class="w-full sm:w-auto bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]">
-          <option value="">All Status</option>
-          <option value="live">Live</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="offline">Offline</option>
-        </select>
-        <button type="button" id="streams-date-filter-btn" onclick="openDateFilterModal()"
-          class="w-full sm:w-auto flex items-center justify-center gap-2 bg-dark-700 border border-gray-600 text-gray-300 hover:text-white px-3 py-2 rounded-lg transition-colors">
-          <i class="ti ti-calendar"></i>
-          <span id="streams-date-filter-label">Date</span>
-        </button>
+        <div class="grid grid-cols-2 gap-3 w-full sm:contents">
+          <select id="streams-status-filter" onchange="applyStreamFilters()"
+            class="w-full sm:w-auto bg-dark-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]">
+            <option value="">All Status</option>
+            <option value="live">Live</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="offline">Offline</option>
+          </select>
+          <button type="button" id="streams-date-filter-btn" onclick="openDateFilterModal()"
+            class="w-full sm:w-auto flex items-center justify-center gap-2 bg-dark-700 border border-gray-600 text-gray-300 hover:text-white px-3 py-2 rounded-lg transition-colors">
+            <i class="ti ti-calendar"></i>
+            <span id="streams-date-filter-label">Date</span>
+          </button>
+        </div>
         <button onclick="openNewStreamModal()"
-          class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+          class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors">
           <i class="ti ti-plus"></i>
           <span>New Stream</span>
         </button>
@@ -538,8 +540,8 @@
                     <div>
                       <label class="text-sm font-medium text-white block mb-2">Privacy</label>
                       <select id="ytPrivacy" name="ytPrivacy" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option value="public">Public</option>
-                        <option value="unlisted" selected>Unlisted</option>
+                        <option value="public" selected>Public</option>
+                        <option value="unlisted">Unlisted</option>
                         <option value="private">Private</option>
                       </select>
                     </div>
@@ -549,7 +551,7 @@
                         <option value="22">People & Blogs</option>
                         <option value="20">Gaming</option>
                         <option value="24">Entertainment</option>
-                        <option value="10">Music</option>
+                        <option value="10" selected>Music</option>
                         <option value="28">Science & Technology</option>
                         <option value="17">Sports</option>
                         <option value="27">Education</option>
@@ -682,7 +684,7 @@
             Cancel
           </button>
           <button type="submit" form="newStreamForm"
-            class="px-5 py-2.5 text-sm font-medium bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors">
+            class="px-5 py-2.5 text-sm font-medium bg-primary hover:bg-secondary text-white rounded-lg transition-colors">
             Create Stream
           </button>
         </div>
@@ -1024,8 +1026,8 @@
                     <div>
                       <label class="text-sm font-medium text-white block mb-2">Privacy</label>
                       <select id="editYtPrivacy" name="ytPrivacy" class="w-full px-4 py-2.5 bg-dark-700 border border-gray-600 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option value="public">Public</option>
-                        <option value="unlisted" selected>Unlisted</option>
+                        <option value="public" selected>Public</option>
+                        <option value="unlisted">Unlisted</option>
                         <option value="private">Private</option>
                       </select>
                     </div>
@@ -1035,7 +1037,7 @@
                         <option value="22">People & Blogs</option>
                         <option value="20">Gaming</option>
                         <option value="24">Entertainment</option>
-                        <option value="10">Music</option>
+                        <option value="10" selected>Music</option>
                         <option value="28">Science & Technology</option>
                         <option value="17">Sports</option>
                         <option value="27">Education</option>
@@ -1171,7 +1173,7 @@
             Cancel
           </button>
           <button type="submit" form="editStreamForm"
-            class="px-5 py-2.5 text-sm font-medium bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors">
+            class="px-5 py-2.5 text-sm font-medium bg-primary hover:bg-secondary text-white rounded-lg transition-colors">
             Save Changes
           </button>
         </div>
@@ -1874,7 +1876,7 @@
           <button
             onclick="startStream('${streamId}')"
             id="action-btn-${streamId}-${view}"
-            class="${btnClass} bg-primary hover:bg-blue-600">
+            class="${btnClass} bg-primary hover:bg-secondary">
             Start
           </button>
         `;
@@ -2800,7 +2802,7 @@
       
       ytTags.forEach((tag, index) => {
         const badge = document.createElement('span');
-        badge.className = 'yt-tag-badge inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border border-primary/30 rounded-full text-xs text-blue-300';
+        badge.className = 'yt-tag-badge inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border border-primary/30 rounded-full text-xs text-primary';
         badge.innerHTML = `
           <span>${tag}</span>
           <button type="button" class="flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-white/20" onclick="removeYtTag(${index})">
@@ -2964,7 +2966,7 @@
       
       editYtTags.forEach((tag, index) => {
         const badge = document.createElement('span');
-        badge.className = 'edit-yt-tag-badge inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border border-primary/30 rounded-full text-xs text-blue-300';
+        badge.className = 'edit-yt-tag-badge inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border border-primary/30 rounded-full text-xs text-primary';
         badge.innerHTML = `<span>${tag}</span><button type="button" class="flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-white/20" onclick="removeEditYtTag(${index})"><i class="ti ti-x text-xs"></i></button>`;
         container.insertBefore(badge, input);
       });
@@ -3274,8 +3276,8 @@
         
         document.getElementById('editYtStreamTitle').value = stream.title || '';
         document.getElementById('editYtDescription').value = stream.youtube_description || '';
-        document.getElementById('editYtPrivacy').value = stream.youtube_privacy || 'unlisted';
-        document.getElementById('editYtCategory').value = stream.youtube_category || '22';
+        document.getElementById('editYtPrivacy').value = stream.youtube_privacy || 'public';
+        document.getElementById('editYtCategory').value = stream.youtube_category || '10';
         
         editYtTags = stream.youtube_tags ? stream.youtube_tags.split(',').filter(t => t.trim()) : [];
         renderEditYtTags();
@@ -4351,7 +4353,7 @@
         <button type="button" onclick="resetDateFilter()" class="text-sm text-gray-400 hover:text-red-400 transition-colors">Reset</button>
         <div class="flex gap-2">
           <button type="button" onclick="closeDateFilterModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
-          <button type="button" onclick="applyDateFilter()" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg text-sm transition-colors">Apply</button>
+          <button type="button" onclick="applyDateFilter()" class="px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm transition-colors">Apply</button>
         </div>
       </div>
     </div>

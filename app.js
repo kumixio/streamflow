@@ -65,10 +65,10 @@ app.locals.helpers = {
     if (req.session && req.session.userId) {
       const avatarPath = req.session.avatar_path;
       if (avatarPath) {
-        return `<img src="${avatarPath}" alt="${req.session.username || 'User'}'s Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-avatar.jpg';">`;
+        return `<img src="${avatarPath}" alt="${req.session.username || 'User'}'s Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='/images/default-avatar.png';">`;
       }
     }
-    return '<img src="/images/default-avatar.jpg" alt="Default Profile" class="w-full h-full object-cover">';
+    return '<img src="/images/default-avatar.png" alt="Default Profile" class="w-full h-full object-cover">';
   },
   getPlatformIcon: function (platform) {
     switch (platform) {
@@ -196,7 +196,7 @@ app.use(express.json({ limit: '50gb' }));
 // mounted on /api only: every mutating API call must carry the session
 // CSRF token (X-CSRF-Token header, attached globally by public/js/csrf.js).
 // Browser pages do their mutations through /api; the pre-auth form pages
-// (/login, /signup, /setup-account) post outside this scope.
+// (/login, /setup-account) post outside this scope.
 const csrfProtection = function (req, res, next) {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
     return next();
@@ -384,150 +384,6 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/signup', async (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/dashboard');
-  }
-  try {
-    const usersExist = await checkIfUsersExist();
-    if (!usersExist) {
-      return res.redirect('/setup-account');
-    }
-    
-    const AppSettings = require('./models/AppSettings');
-    const recaptchaSettings = await AppSettings.getRecaptchaSettings();
-    
-    res.render('signup', {
-      title: 'Sign Up',
-      error: null,
-      success: null,
-      recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-    });
-  } catch (error) {
-    console.error('Error loading signup page:', error);
-    res.render('signup', {
-      title: 'Sign Up',
-      error: 'System error. Please try again.',
-      success: null,
-      recaptchaSiteKey: null
-    });
-  }
-});
-
-app.post('/signup', upload.single('avatar'), async (req, res) => {
-  const { username, password, confirmPassword, user_role, status } = req.body;
-  const recaptchaResponse = req.body['g-recaptcha-response'];
-  
-  try {
-    const AppSettings = require('./models/AppSettings');
-    const recaptchaSettings = await AppSettings.getRecaptchaSettings();
-    
-    if (recaptchaSettings.hasKeys && recaptchaSettings.enabled) {
-      if (!recaptchaResponse) {
-        return res.render('signup', {
-          title: 'Sign Up',
-          error: 'Please complete the reCAPTCHA verification',
-          success: null,
-          recaptchaSiteKey: recaptchaSettings.siteKey
-        });
-      }
-      
-      const { decrypt } = require('./utils/encryption');
-      const secretKey = decrypt(recaptchaSettings.secretKey);
-      
-      const axios = require('axios');
-      const verifyResponse = await axios.post(
-        'https://www.google.com/recaptcha/api/siteverify',
-        `secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(recaptchaResponse)}`,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
-      
-      if (!verifyResponse.data.success) {
-        return res.render('signup', {
-          title: 'Sign Up',
-          error: 'reCAPTCHA verification failed. Please try again.',
-          success: null,
-          recaptchaSiteKey: recaptchaSettings.siteKey
-        });
-      }
-    }
-    
-    if (!username || !password) {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: 'Username and password are required',
-        success: null,
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    }
-
-    if (password !== confirmPassword) {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: 'Passwords do not match',
-        success: null,
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    }
-
-    if (password.length < 6) {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: 'Password must be at least 6 characters long',
-        success: null,
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    }
-
-    const existingUser = await User.findByUsername(username);
-    if (existingUser) {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: 'Username already exists',
-        success: null,
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    }
-
-    let avatarPath = null;
-    if (req.file) {
-      avatarPath = `/uploads/avatars/${req.file.filename}`;
-    }
-
-    const newUser = await User.create({
-      username,
-      password,
-      avatar_path: avatarPath,
-      user_role: user_role || 'member',
-      status: status || 'inactive'
-    });
-
-    if (newUser) {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: null,
-        success: 'Account created successfully! Please wait for admin approval to activate your account.',
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    } else {
-      return res.render('signup', {
-        title: 'Sign Up',
-        error: 'Failed to create account. Please try again.',
-        success: null,
-        recaptchaSiteKey: recaptchaSettings.hasKeys && recaptchaSettings.enabled ? recaptchaSettings.siteKey : null
-      });
-    }
-  } catch (error) {
-    console.error('Signup error:', error);
-    return res.render('signup', {
-      title: 'Sign Up',
-      error: 'An error occurred during registration. Please try again.',
-      success: null,
-      recaptchaSiteKey: null
-    });
-  }
-});
-
 app.get('/setup-account', async (req, res) => {
   try {
     const usersExist = await checkIfUsersExist();
@@ -604,7 +460,7 @@ app.post('/setup-account', upload.single('avatar'), [
         }
         console.log('Setup account - Using user ID from database:', user.id);
         console.log('Setup account - Session userId set to:', req.session.userId);
-        return res.redirect('/welcome');
+        return res.redirect('/dashboard');
       } catch (error) {
         console.error('User creation error:', error);
         return res.render('setup-account', {
@@ -648,40 +504,6 @@ app.get('/privacy', (req, res) => {
 });
 app.get('/terms', (req, res) => {
   res.render('public/terms', { title: 'Terms of Service' });
-});
-app.get('/welcome', isAuthenticated, async (req, res) => {
-  try {
-    const user = await User.findById(req.session.userId);
-    if (!user || user.welcome_shown === 1) {
-      return res.redirect('/dashboard');
-    }
-    res.render('welcome', {
-      title: 'Welcome'
-    });
-  } catch (error) {
-    console.error('Welcome page error:', error);
-    res.redirect('/dashboard');
-  }
-});
-
-app.get('/welcome-bypass', (req, res) => {
-  res.render('welcome', {
-    title: 'Welcome'
-  });
-});
-app.get('/welcome/continue', isAuthenticated, async (req, res) => {
-  try {
-    await new Promise((resolve, reject) => {
-      db.run('UPDATE users SET welcome_shown = 1 WHERE id = ?', [req.session.userId], function(err) {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    res.redirect('/dashboard');
-  } catch (error) {
-    console.error('Welcome continue error:', error);
-    res.redirect('/dashboard');
-  }
 });
 app.get('/dashboard', isAuthenticated, async (req, res) => {
   try {
@@ -1237,88 +1059,6 @@ app.get('/users', isAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/users/status', isAdmin, async (req, res) => {
-  try {
-    const { userId, status } = req.body;
-    
-    if (!userId || !status || !['active', 'inactive'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID or status'
-      });
-    }
-
-    if (userId == req.session.userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot change your own status'
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    await User.updateStatus(userId, status);
-    
-    res.json({
-      success: true,
-      message: `User ${status === 'active' ? 'activated' : 'deactivated'} successfully`
-    });
-  } catch (error) {
-    console.error('Error updating user status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update user status'
-    });
-  }
-});
-
-app.post('/api/users/role', isAdmin, async (req, res) => {
-  try {
-    const { userId, role } = req.body;
-    
-    if (!userId || !role || !['admin', 'member'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID or role'
-      });
-    }
-
-    if (userId == req.session.userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot change your own role'
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    await User.updateRole(userId, role);
-    
-    res.json({
-      success: true,
-      message: `User role updated to ${role} successfully`
-    });
-  } catch (error) {
-    console.error('Error updating user role:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update user role'
-    });
-  }
-});
-
 app.post('/api/users/delete', isAdmin, async (req, res) => {
   try {
     const { userId } = req.body;
@@ -1431,7 +1171,7 @@ app.post('/api/users/create', isAdmin, upload.single('avatar'), async (req, res)
       });
     }
 
-    let avatarPath = '/uploads/avatars/default-avatar.png';
+    let avatarPath = '/images/default-avatar.png';
     if (req.file) {
       avatarPath = `/uploads/avatars/${req.file.filename}`;
     }
@@ -1700,90 +1440,6 @@ app.post('/api/settings/logs/clear', isAuthenticated, async (req, res) => {
   }
 });
 
-app.post('/settings/integrations/gdrive', isAuthenticated, [
-  body('apiKey').notEmpty().withMessage('API Key is required'),
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.render('settings', {
-        title: 'Settings',
-        active: 'settings',
-        user: await User.findById(req.session.userId),
-        error: errors.array()[0].msg,
-        activeTab: 'integrations'
-      });
-    }
-    await User.update(req.session.userId, {
-      gdrive_api_key: req.body.apiKey
-    });
-    return res.render('settings', {
-      title: 'Settings',
-      active: 'settings',
-      user: await User.findById(req.session.userId),
-      success: 'Google Drive API key saved successfully!',
-      activeTab: 'integrations'
-    });
-  } catch (error) {
-    console.error('Error saving Google Drive API key:', error);
-    res.render('settings', {
-      title: 'Settings',
-      active: 'settings',
-      user: await User.findById(req.session.userId),
-      error: 'An error occurred while saving your Google Drive API key',
-      activeTab: 'integrations'
-    });
-  }
-});
-app.post('/upload/video', isAuthenticated, uploadVideo.single('video'), async (req, res) => {
-  try {
-    console.log('Upload request received:', req.file);
-    console.log('Session userId for upload:', req.session.userId);
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'No video file provided' });
-    }
-    const { filename, originalname, path: videoPath, mimetype, size } = req.file;
-    const thumbnailName = path.basename(filename, path.extname(filename)) + '.jpg';
-    const videoInfo = await getVideoInfo(videoPath);
-    const thumbnailRelativePath = await generateThumbnail(videoPath, thumbnailName)
-      .then(() => `/uploads/thumbnails/${thumbnailName}`)
-      .catch(() => null);
-    let format = 'unknown';
-    if (mimetype === 'video/mp4') format = 'mp4';
-    else if (mimetype === 'video/avi') format = 'avi';
-    else if (mimetype === 'video/quicktime') format = 'mov';
-    const videoData = {
-      title: path.basename(originalname, path.extname(originalname)),
-      original_filename: originalname,
-      filepath: `/uploads/videos/${filename}`,
-      thumbnail_path: thumbnailRelativePath,
-      file_size: size,
-      duration: videoInfo.duration,
-      format: format,
-      user_id: req.session.userId
-    };
-    const video = await Video.create(videoData);
-    res.json({
-      success: true,
-      video: {
-        id: video.id,
-        title: video.title,
-        filepath: video.filepath,
-        thumbnail_path: video.thumbnail_path,
-        duration: video.duration,
-        file_size: video.file_size,
-        format: video.format
-      }
-    });
-  } catch (error) {
-    console.error('Upload error details:', error);
-    res.status(500).json({ 
-      error: 'Failed to upload video',
-      details: error.message 
-    });
-  }
-});
 app.post('/api/videos/upload', isAuthenticated, (req, res, next) => {
   uploadVideo.single('video')(req, res, (err) => {
     if (err) {
@@ -1991,7 +1647,7 @@ app.post('/api/audio/upload', isAuthenticated, (req, res, next) => {
     const fullFilePath = result.filepath;
     const audioInfo = await audioConverter.getAudioInfo(fullFilePath);
     const stats = fs.statSync(fullFilePath);
-    const thumbnailPath = '/images/audio-thumbnail.png';
+    const thumbnailPath = '/images/audio-thumbnail.svg';
     const videoData = {
       title,
       filepath: filePath,
@@ -2088,27 +1744,6 @@ app.post('/api/videos/chunk/upload', isAuthenticated, express.raw({ type: 'appli
   }
 });
 
-app.get('/api/videos/chunk/status/:uploadId', isAuthenticated, async (req, res) => {
-  try {
-    const info = await chunkUploadService.getUploadInfo(req.params.uploadId);
-    if (!info) {
-      return res.status(404).json({ success: false, error: 'Upload session not found' });
-    }
-    if (info.userId !== req.session.userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
-    }
-    res.json({
-      success: true,
-      uploadedChunks: info.uploadedChunks,
-      totalChunks: info.totalChunks,
-      status: info.status
-    });
-  } catch (error) {
-    console.error('Chunk status error:', error);
-    res.status(500).json({ success: false, error: 'Failed to get upload status' });
-  }
-});
-
 app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
   try {
     const { uploadId } = req.body;
@@ -2184,39 +1819,6 @@ app.post('/api/videos/chunk/complete', isAuthenticated, async (req, res) => {
   }
 });
 
-app.post('/api/videos/chunk/pause', isAuthenticated, async (req, res) => {
-  try {
-    const { uploadId } = req.body;
-    if (!uploadId) {
-      return res.status(400).json({ success: false, error: 'Missing upload ID' });
-    }
-    const info = await chunkUploadService.getUploadInfo(uploadId);
-    if (!info) {
-      return res.status(404).json({ success: false, error: 'Upload session not found' });
-    }
-    if (info.userId !== req.session.userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
-    }
-    await chunkUploadService.pauseUpload(uploadId);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Chunk pause error:', error);
-    res.status(500).json({ success: false, error: 'Failed to pause upload' });
-  }
-});
-
-app.delete('/api/videos/chunk/:uploadId', isAuthenticated, async (req, res) => {
-  try {
-    const info = await chunkUploadService.getUploadInfo(req.params.uploadId);
-    if (info && info.userId === req.session.userId) {
-      await chunkUploadService.cleanupUpload(req.params.uploadId);
-    }
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Chunk cleanup error:', error);
-    res.status(500).json({ success: false, error: 'Failed to cleanup upload' });
-  }
-});
 app.delete('/api/videos/:id', isAuthenticated, async (req, res) => {
   try {
     const videoId = req.params.id;
@@ -2308,47 +1910,6 @@ app.get('/stream/:videoId', isAuthenticated, async (req, res) => {
     res.status(500).send('Error streaming video');
   }
 });
-app.get('/api/settings/gdrive-status', isAuthenticated, async (req, res) => {
-  try {
-    const user = await User.findById(req.session.userId);
-    res.json({
-      hasApiKey: !!user.gdrive_api_key,
-      message: user.gdrive_api_key ? 'Google Drive API key is configured' : 'No Google Drive API key found'
-    });
-  } catch (error) {
-    console.error('Error checking Google Drive API status:', error);
-    res.status(500).json({ error: 'Failed to check API key status' });
-  }
-});
-app.post('/api/settings/gdrive-api-key', isAuthenticated, [
-  body('apiKey').notEmpty().withMessage('API Key is required'),
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        error: errors.array()[0].msg
-      });
-    }
-    await User.update(req.session.userId, {
-      gdrive_api_key: req.body.apiKey
-    });
-    return res.json({
-      success: true,
-      message: 'Google Drive API key saved successfully!'
-    });
-  } catch (error) {
-    console.error('Error saving Google Drive API key:', error);
-    res.status(500).json({
-      success: false,
-      error: 'An error occurred while saving your Google Drive API key'
-    });
-  }
-});
-
-const { encrypt, decrypt } = require('./utils/encryption');
-
 app.post('/api/settings/youtube-credentials', isAuthenticated, [
   body('clientId').notEmpty().withMessage('Client ID is required'),
   body('clientSecret').notEmpty().withMessage('Client Secret is required'),
@@ -2380,29 +1941,6 @@ app.post('/api/settings/youtube-credentials', isAuthenticated, [
     res.status(500).json({
       success: false,
       error: 'An error occurred while saving your YouTube credentials'
-    });
-  }
-});
-
-app.get('/api/settings/youtube-status', isAuthenticated, async (req, res) => {
-  try {
-    const user = await User.findById(req.session.userId);
-    
-    const hasCredentials = !!(user.youtube_client_id && user.youtube_client_secret);
-    const isConnected = !!(user.youtube_access_token && user.youtube_refresh_token);
-    
-    res.json({
-      success: true,
-      hasCredentials,
-      isConnected,
-      channelName: user.youtube_channel_name || null,
-      channelId: user.youtube_channel_id || null
-    });
-  } catch (error) {
-    console.error('Error checking YouTube status:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to check YouTube status' 
     });
   }
 });
@@ -3302,37 +2840,6 @@ async function processMegaImport(jobId, megaUrl, userId, folderId = null) {
     }, 5 * 60 * 1000);
   }
 }
-
-app.get('/api/stream/videos', isAuthenticated, async (req, res) => {
-  try {
-    const allVideos = await Video.findAll(req.session.userId);
-    const videos = allVideos.filter(video => {
-      const filepath = (video.filepath || '').toLowerCase();
-      if (filepath.includes('/audio/')) return false;
-      if (filepath.endsWith('.m4a') || filepath.endsWith('.aac') || filepath.endsWith('.mp3')) return false;
-      return true;
-    });
-    const formattedVideos = videos.map(video => {
-      const duration = video.duration ? Math.floor(video.duration) : 0;
-      const minutes = Math.floor(duration / 60);
-      const seconds = Math.floor(duration % 60);
-      const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      return {
-        id: video.id,
-        name: video.title,
-        thumbnail: video.thumbnail_path,
-        resolution: video.resolution || '1280x720',
-        duration: formattedDuration,
-        url: `/stream/${video.id}`,
-        type: 'video'
-      };
-    });
-    res.json(formattedVideos);
-  } catch (error) {
-    console.error('Error fetching videos for stream:', error);
-    res.status(500).json({ error: 'Failed to load videos' });
-  }
-});
 
 app.get('/api/stream/content', isAuthenticated, async (req, res) => {
   try {
@@ -4769,6 +4276,20 @@ app.post('/api/rotations/:id/stop', isAuthenticated, async (req, res) => {
     console.error('Error stopping rotation:', error);
     res.status(500).json({ success: false, error: 'Failed to stop rotation' });
   }
+});
+
+// catch-all 404: unknown API paths answer JSON (frontend fetch expects it),
+// everything else gets the branded error page instead of Express' bare
+// "Cannot GET /xxx" text
+app.use((req, res) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, error: 'Endpoint not found' });
+  }
+  res.status(404).render('error', {
+    title: '404',
+    error: `Page not found: ${req.path}`,
+    user: req.user || null
+  });
 });
 
 const server = app.listen(port, '0.0.0.0', async () => {
