@@ -115,6 +115,14 @@
           are removed. You can also revoke the app's access at any time from your Google account's
           third-party access page.
         </p>
+
+        <h3 class="text-gray-200 font-semibold mb-1.5">2.4 How Google user data is protected</h3>
+        <ul class="list-disc pl-5 space-y-1.5">
+          <li>OAuth tokens are <strong class="text-gray-200">encrypted at rest</strong> in this instance's database and are only decrypted in memory when needed to call the YouTube API on your behalf.</li>
+          <li>All communication with Google's servers happens over <strong class="text-gray-200">HTTPS</strong>.</li>
+          <li>Tokens are <strong class="text-gray-200">never displayed</strong> in the app's interface, never written to application logs, and never shared with other users of the instance.</li>
+          <li>Access to stored data is limited to <strong class="text-gray-200">the account that connected the channel</strong> and the administrator of this instance.</li>
+        </ul>
       </section>
 
       <section>
